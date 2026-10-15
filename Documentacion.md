@@ -89,6 +89,9 @@ Para cambiar el puerto: `$env:PORT="4000"; npm start`
    - **Excluir usuarios**: separados por comas, con o sin `@`.
    - **Contar también las respuestas** a otros comentarios (por defecto no).
 3. **Participantes**: se recalcula solo y muestra cuántos comentarios hay, cuántos participantes son válidos y por qué se descarta el resto.
+   - Los comentarios se descargan **una vez** al elegir la publicación. Al cambiar las bases solo se vuelven a filtrar, así no se gastan llamadas a la API.
+   - Se indica la hora a la que se leyeron. Pulsa **Actualizar** para descargarlos de nuevo.
+   - Al pulsar **¡Sortear!** siempre se vuelven a descargar en ese momento.
 
 ### Pantalla del sorteo
 
@@ -98,6 +101,25 @@ Para cambiar el puerto: `$env:PORT="4000"; npm start`
 4. Cuando se completan los ganadores (o se acaban los participantes), se guarda el resultado con **3 suplentes**: los siguientes del orden.
 
 **Atajos**: **barra espaciadora** para sortear o pasar al siguiente. Usa el botón **Pantalla completa** para el directo.
+
+### Si se corta a mitad (recargar la web, cerrar el navegador, reiniciar el servidor)
+
+Cada decisión (ganador o descartado) se guarda en el servidor en el momento. Al volver a abrir la web aparece el aviso **"Hay un sorteo sin terminar"** con dos opciones:
+
+- **Continuar sorteo**: sigue con **el mismo orden** que se fijó al sortear, justo después del último candidato decidido. Si se cortó mientras verificabas a alguien, vuelve a salir esa misma persona.
+- **Cerrar sin terminar**: el sorteo queda guardado como **cancelado**, con lo que se llegó a revisar, y ya no se puede continuar.
+
+Mientras haya un sorteo sin terminar **no se puede empezar otro**. Así es imposible repetir el sorteo hasta que salga otra persona: o se continúa, o queda registrado como cancelado.
+
+El botón **← Volver** durante el sorteo tampoco pierde nada: el sorteo queda pendiente y se puede continuar.
+
+El servidor solo acepta progreso que siga el orden fijado. No se puede saltar a nadie ni cambiar el orden de los ganadores.
+
+### Fallos de conexión con Instagram
+
+Si una llamada a Instagram falla por un problema pasajero (sin conexión, sin respuesta en 20 s o error temporal de Instagram), se **reintenta 2 veces** (tras 1 s y tras 3 s) antes de dar error. En la consola del servidor se verá `Instagram no responde · reintento 1 de 2`.
+
+Los errores que no se arreglan reintentando (token caducado, límite de llamadas, permisos) dan error a la primera, para no perder tiempo en directo. Si falla al pulsar ¡Sortear!, no se ha fijado ningún orden: se puede volver a pulsar.
 
 ## 5. Reglas de validez de un comentario
 
@@ -129,7 +151,8 @@ Cada sorteo genera tres archivos con un identificador `fecha-hora-xxxxxx`:
 |---|---|---|
 | `…-orden.json` | Al pulsar ¡Sortear! | Configuración, publicación, nº de comentarios y **orden completo** fijado |
 | `…-comentarios.csv` | Al pulsar ¡Sortear! | Todos los comentarios con `valido` y `motivo` de descarte |
-| `…-resultado.json` | Al terminar | Lo anterior + ganadores, descartados en la verificación (y por qué) y suplentes |
+| `…-resultado.json` | Al terminar o al cerrar sin terminar | Lo anterior + `estado` (`terminado` o `cancelado`), ganadores, descartados en la verificación (y por qué) y suplentes |
+| `en-curso.json` | Mientras hay un sorteo sin terminar | Orden y progreso del sorteo actual. Se borra solo al terminarlo o cancelarlo. **No lo borres a mano** |
 
 Sirven como **prueba de transparencia** del sorteo si alguien la pide.
 
@@ -167,13 +190,17 @@ App_Sorteo_Instagram/
 |---|---|
 | `GET /api/status` | Modo (demo/instagram) y cuenta conectada |
 | `GET /api/posts` | Últimas 20 publicaciones |
-| `POST /api/preview` | Recuento de participantes con la configuración elegida |
-| `POST /api/draw` | Sorteo real: descarga comentarios, fija el orden y guarda `orden.json` + `comentarios.csv` |
-| `POST /api/draw/finish` | Guarda `resultado.json` tras la verificación |
+| `POST /api/preview` | Recuento de participantes con la configuración elegida (usa los comentarios en caché; `refrescar: true` los vuelve a descargar) |
+| `GET /api/draw/current` | Sorteo sin terminar, si lo hay |
+| `POST /api/draw` | Sorteo real: descarga comentarios, fija el orden y guarda `orden.json`, `comentarios.csv` y `en-curso.json`. Da error 409 si hay uno sin terminar |
+| `POST /api/draw/progress` | Guarda cada decisión de la verificación (comprueba que sigue el orden) |
+| `POST /api/draw/finish` | Guarda `resultado.json` como `terminado` |
+| `POST /api/draw/cancel` | Guarda `resultado.json` como `cancelado` |
 
 ## 8. Cosas a tener en cuenta
 
-- **No reinicies el servidor a mitad de un sorteo.** El sorteo en curso se guarda en memoria para poder cerrarlo. Si el servidor se reinicia antes de terminar, el resultado final dará error ("Sorteo no encontrado"). El `orden.json` y el `comentarios.csv` sí quedan guardados.
+- **Si algo se corta a mitad de un sorteo**, vuelve a arrancar el servidor y abre la web: aparecerá "Hay un sorteo sin terminar" para continuarlo (ver sección 4).
+- **Los comentarios nuevos no aparecen en el recuento** hasta que pulses *Actualizar* o *¡Sortear!*, porque se guardan en caché. La caché se vacía al reiniciar el servidor.
 - **El token no se guarda en ningún archivo**: solo se lee de la variable `IG_TOKEN`. No lo escribas en el código ni lo subas al repo. Si algún día usas un archivo `.env`, ya está en `.gitignore`.
 - **Caducidad del token**: los tokens de Instagram caducan (los de larga duración, a los 60 días aprox.). Si sale un error `Instagram: ... (código 190)`, normalmente toca renovar el token.
 - **Si la web muestra** "Abre la web con 'npm run dev'… o compílala con 'npm run build'", falta ejecutar `npm run build` antes de `npm start`.

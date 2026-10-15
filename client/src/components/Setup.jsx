@@ -5,7 +5,21 @@ function fecha(iso) {
   return new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" });
 }
 
-export default function Setup({ post, setPost, config, setConfig, configParaServidor, preview, setPreview, onStart }) {
+function hora(iso) {
+  return new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+}
+
+export default function Setup({
+  post,
+  setPost,
+  config,
+  setConfig,
+  configParaServidor,
+  preview,
+  setPreview,
+  hayPendiente,
+  onStart,
+}) {
   const [posts, setPosts] = useState(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
@@ -14,19 +28,24 @@ export default function Setup({ post, setPost, config, setConfig, configParaServ
     api.posts().then((d) => setPosts(d.posts)).catch((e) => setError(e.message));
   }, []);
 
+  // El servidor guarda los comentarios descargados: recalcular solo vuelve a filtrar,
+  // salvo con "Actualizar", que los descarga de nuevo
+  const cargar = (refrescar) => {
+    setCargando(true);
+    setError("");
+    return api
+      .preview(post.id, configParaServidor, refrescar)
+      .then(setPreview)
+      .catch((e) => setError(e.message))
+      .finally(() => setCargando(false));
+  };
+
   // Recalcular participantes cuando cambia la publicación o la configuración
   const clave = JSON.stringify([post?.id, configParaServidor]);
   useEffect(() => {
     if (!post) return;
     setCargando(true);
-    setError("");
-    const t = setTimeout(() => {
-      api
-        .preview(post.id, configParaServidor)
-        .then(setPreview)
-        .catch((e) => setError(e.message))
-        .finally(() => setCargando(false));
-    }, 350);
+    const t = setTimeout(() => cargar(false), 350);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clave]);
@@ -117,9 +136,20 @@ export default function Setup({ post, setPost, config, setConfig, configParaServ
               </ul>
             )}
             <p className="hint">Una participación por persona, aunque comente varias veces.</p>
-            <button className="btn btn--primary btn--block" disabled={!preview.participantes} onClick={onStart}>
+            <p className="hint">
+              Comentarios leídos a las {hora(preview.leidoEn)} ·{" "}
+              <button className="linkbtn" onClick={() => cargar(true)}>Actualizar</button>
+              <br />
+              Al pulsar ¡Sortear! se vuelven a leer en ese momento.
+            </p>
+            <button
+              className="btn btn--primary btn--block"
+              disabled={!preview.participantes || hayPendiente}
+              onClick={onStart}
+            >
               Ir a la pantalla del sorteo →
             </button>
+            {hayPendiente && <p className="hint">Termina o cierra el sorteo pendiente antes de empezar otro.</p>}
           </>
         )}
       </section>

@@ -3,19 +3,33 @@ import { api } from "../api.js";
 import Reel from "./Reel.jsx";
 import Confetti from "./Confetti.jsx";
 
+// Estado de partida. Al reanudar un sorteo guardado se sigue justo después del último candidato
+// ya decidido: el orden está fijado, así que el siguiente siempre es el mismo.
+function estadoInicial(s) {
+  if (!s) return { draw: null, idx: 0, fase: "idle", ganadores: [], descartados: [] };
+  const porNombre = new Map(s.orden.map((o) => [o.username, o]));
+  const ganadores = s.progreso.ganadores.map((u) => porNombre.get(u));
+  const descartados = s.progreso.descartados;
+  const revisados = ganadores.length + descartados.length;
+  const terminado = ganadores.length >= s.ganadores || revisados >= s.orden.length;
+  return { draw: s, idx: terminado ? revisados - 1 : revisados, fase: terminado ? "final" : "idle", ganadores, descartados };
+}
+
 // Fases: idle → spinning → verify → (winner | rejected) → ... → final
-export default function Stage({ post, config, pool, totalParticipantes, onExit }) {
-  const [draw, setDraw] = useState(null);
-  const [idx, setIdx] = useState(0);
-  const [fase, setFase] = useState("idle");
+export default function Stage({ sorteoInicial, post, config, pool, totalParticipantes, onExit }) {
+  const [inicio] = useState(() => estadoInicial(sorteoInicial));
+  const [draw, setDraw] = useState(inicio.draw);
+  const [idx, setIdx] = useState(inicio.idx);
+  const [fase, setFase] = useState(inicio.fase);
   const [spinId, setSpinId] = useState(0);
   const [checks, setChecks] = useState({ sigue: null, like: null });
-  const [ganadores, setGanadores] = useState([]);
-  const [descartados, setDescartados] = useState([]);
+  const [ganadores, setGanadores] = useState(inicio.ganadores);
+  const [descartados, setDescartados] = useState(inicio.descartados);
   const [error, setError] = useState("");
   const [guardado, setGuardado] = useState("");
   const [confetti, setConfetti] = useState(0);
   const guardando = useRef(false);
+  const ultimoGuardado = useRef(Promise.resolve());
 
   const candidato = draw?.orden[idx];
   const objetivo = draw ? draw.ganadores : Number(config.ganadores) || 1;
@@ -47,15 +61,23 @@ export default function Stage({ post, config, pool, totalParticipantes, onExit }
   };
 
   const decidir = (c) => {
+    let g = ganadores;
+    let d = descartados;
     if (c.sigue && c.like) {
-      setGanadores((g) => [...g, candidato]);
+      g = [...ganadores, candidato];
+      setGanadores(g);
       setFase("winner");
       setConfetti((n) => n + 1);
     } else {
       const motivo = c.sigue === false ? "no sigue la cuenta" : "no ha dado like";
-      setDescartados((d) => [...d, { username: candidato.username, motivo }]);
+      d = [...descartados, { username: candidato.username, motivo }];
+      setDescartados(d);
       setFase("rejected");
     }
+    // Cada decisión queda guardada en el servidor para poder reanudar el sorteo
+    ultimoGuardado.current = api
+      .progress({ id: draw.id, ganadores: g.map((x) => x.username), descartados: d })
+      .catch((e) => setError(`No se pudo guardar el progreso: ${e.message}`));
   };
 
   const completo = ganadores.length >= objetivo;
@@ -71,9 +93,8 @@ export default function Stage({ post, config, pool, totalParticipantes, onExit }
   useEffect(() => {
     if (fase !== "final" || !draw || guardando.current) return;
     guardando.current = true;
-    const suplentes = draw.orden.slice(idx + 1, idx + 4).map((o) => o.username);
-    api
-      .finish({ id: draw.id, ganadores: ganadores.map((g) => g.username), descartados, suplentes })
+    ultimoGuardado.current
+      .then(() => api.finish({ id: draw.id, ganadores: ganadores.map((g) => g.username), descartados }))
       .then((r) => setGuardado(r.archivo))
       .catch((e) => setError(e.message));
   }, [fase]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -130,6 +151,9 @@ export default function Stage({ post, config, pool, totalParticipantes, onExit }
                 {fase === "loading" ? "Leyendo comentarios…" : idx === 0 ? "¡Sortear!" : "Siguiente"}
               </button>
               <p className="muted small">Pulsa el botón o la barra espaciadora</p>
+              {sorteoInicial && idx > 0 && (
+                <p className="muted small">Sorteo reanudado: se sigue con el mismo orden que se fijó al sortear.</p>
+              )}
             </div>
           )}
 

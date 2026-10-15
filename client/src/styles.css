@@ -53,6 +53,19 @@ a { color: inherit; }
 .muted { color: var(--muted); }
 .small { font-size: 14px; }
 .hint { color: var(--muted); font-size: 13px; line-height: 1.5; margin: 4px 0 0; }
+.linkbtn {
+  padding: 0; border: 0; background: none; font-size: inherit; color: var(--text);
+  border-bottom: 1px dashed var(--line);
+}
+.linkbtn:hover:not(:disabled) { border-bottom-color: var(--text); }
+
+/* ── sorteo pendiente ─────────────────────────── */
+.pendiente {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  margin-bottom: 18px; padding: 14px 18px; border-radius: var(--radius);
+  background: rgba(255, 181, 71, 0.08); border: 1px solid rgba(255, 181, 71, 0.4);
+}
+.pendiente__btns { display: flex; gap: 10px; }
 
 /* ── configuración ─────────────────────────── */
 .setup { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 18px; align-items: start; }

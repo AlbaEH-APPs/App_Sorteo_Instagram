@@ -8,15 +8,39 @@ function url(path, params, token) {
   return u.toString();
 }
 
-async function get(u) {
-  const res = await fetch(u);
-  const data = await res.json();
+const ESPERAS = [1000, 3000]; // ms antes de cada reintento
+const TIEMPO_MAXIMO = 20000; // ms por petición
+const CODIGOS_TEMPORALES = new Set([1, 2]); // error desconocido / servicio no disponible por un momento
+
+async function pedir(u) {
+  let res, data;
+  try {
+    res = await fetch(u, { signal: AbortSignal.timeout(TIEMPO_MAXIMO) });
+    data = await res.json();
+  } catch {
+    // Sin conexión, tiempo agotado o respuesta que no es JSON (no se incluye la URL: lleva el token)
+    throw Object.assign(new Error("Instagram no responde"), { status: 502, reintentable: true });
+  }
   if (data.error) {
     const e = new Error(`Instagram: ${data.error.message} (código ${data.error.code})`);
     e.status = 502;
+    e.reintentable = res.status >= 500 || data.error.is_transient === true || CODIGOS_TEMPORALES.has(data.error.code);
     throw e;
   }
   return data;
+}
+
+// Reintenta los fallos pasajeros; los demás (token caducado, límite de llamadas…) fallan a la primera
+async function get(u) {
+  for (let intento = 0; ; intento++) {
+    try {
+      return await pedir(u);
+    } catch (e) {
+      if (!e.reintentable || intento >= ESPERAS.length) throw e;
+      console.warn(`${e.message} · reintento ${intento + 1} de ${ESPERAS.length}`);
+      await new Promise((r) => setTimeout(r, ESPERAS[intento]));
+    }
+  }
 }
 
 async function allPages(first) {
