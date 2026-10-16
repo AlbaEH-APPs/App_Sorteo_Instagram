@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
-import { api } from "./api.js";
+import { api, onSesionCaducada } from "./api.js";
 import Setup from "./components/Setup.jsx";
 import Stage from "./components/Stage.jsx";
+import Login from "./components/Login.jsx";
+import Historial from "./components/Historial.jsx";
 
 const CONFIG_INICIAL = {
   ganadores: 1,
@@ -12,6 +14,7 @@ const CONFIG_INICIAL = {
 };
 
 export default function App() {
+  const [sesion, setSesion] = useState(null); // { necesitaLogin, autenticado }
   const [status, setStatus] = useState(null);
   const [error, setError] = useState("");
   const [vista, setVista] = useState("setup");
@@ -27,10 +30,35 @@ export default function App() {
       .then((d) => setPendiente(d.sorteo))
       .catch((e) => setError(e.message));
 
-  useEffect(() => {
+  const cargar = () => {
+    setError("");
     api.status().then(setStatus).catch((e) => setError(e.message));
     cargarPendiente();
+  };
+
+  useEffect(() => {
+    // Si la sesión caduca (o se cambia la contraseña), se vuelve a pedir. Un sorteo a medias
+    // no se pierde: al entrar de nuevo aparece como pendiente para continuarlo.
+    onSesionCaducada(() => {
+      setSesion((s) => ({ ...s, autenticado: false }));
+      setVista("setup");
+      setReanudando(null);
+    });
+    api
+      .session()
+      .then((s) => {
+        setSesion(s);
+        if (s.autenticado) cargar();
+      })
+      .catch((e) => setError(e.message));
   }, []);
+
+  const salir = () => {
+    api.logout().finally(() => {
+      setSesion((s) => ({ ...s, autenticado: false }));
+      setStatus(null);
+    });
+  };
 
   const cerrarPendiente = () => {
     if (!confirm("El sorteo quedará guardado como cancelado y no se podrá continuar. ¿Cerrarlo?")) return;
@@ -53,16 +81,35 @@ export default function App() {
           <span className="brand__mark" aria-hidden>✦</span>
           <span>Sorteo en directo</span>
         </div>
-        {status && (
-          <div className={`chip ${status.modo === "demo" ? "chip--demo" : ""}`}>
-            {status.modo === "demo" ? "Modo demo" : `@${status.cuenta}`}
-          </div>
-        )}
+        <div className="topbar__right">
+          {status && (
+            <div className={`chip ${status.modo === "demo" ? "chip--demo" : ""}`}>
+              {status.modo === "demo" ? "Modo demo" : `@${status.cuenta}`}
+            </div>
+          )}
+          {sesion?.autenticado && vista === "setup" && (
+            <button className="btn btn--ghost btn--small" onClick={() => setVista("historial")}>Historial</button>
+          )}
+          {sesion?.autenticado && sesion.necesitaLogin && vista !== "stage" && (
+            <button className="btn btn--ghost btn--small" onClick={salir}>Salir</button>
+          )}
+        </div>
       </header>
 
       {error && <div className="alert">{error}</div>}
 
-      {status && vista === "setup" && pendiente && (
+      {sesion && !sesion.autenticado && (
+        <Login
+          onLogin={() => {
+            setSesion((s) => ({ ...s, autenticado: true }));
+            cargar();
+          }}
+        />
+      )}
+
+      {sesion?.autenticado && vista === "historial" && <Historial onVolver={() => setVista("setup")} />}
+
+      {sesion?.autenticado && status && vista === "setup" && pendiente && (
         <div className="pendiente">
           <div>
             <strong>Hay un sorteo sin terminar</strong>
@@ -87,7 +134,7 @@ export default function App() {
         </div>
       )}
 
-      {status && vista === "setup" && (
+      {sesion?.autenticado && status && vista === "setup" && (
         <Setup
           post={post}
           setPost={setPost}
@@ -101,7 +148,7 @@ export default function App() {
         />
       )}
 
-      {vista === "stage" && (reanudando || post) && (
+      {sesion?.autenticado && vista === "stage" && (reanudando || post) && (
         <Stage
           sorteoInicial={reanudando}
           post={reanudando ? reanudando.post : post}

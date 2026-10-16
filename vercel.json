@@ -1,0 +1,7 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build",
+  "outputDirectory": "client/dist",
+  "rewrites": [{ "source": "/api/:ruta*", "destination": "/api/index?__ruta=:ruta*" }],
+  "functions": { "api/index.mjs": { "maxDuration": 60 } }
+}

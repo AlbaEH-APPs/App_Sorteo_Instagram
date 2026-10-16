@@ -4,6 +4,8 @@ App para hacer sorteos de Instagram en directo: lee los comentarios de una publi
 
 Repositorio: https://github.com/AlbaEH-APPs/App_Sorteo_Instagram (privado)
 
+> **Para poner en marcha la app paso a paso** (modo prueba, producción y cómo conseguir el token de Instagram), consulta la [Guía de lanzamiento](Guia_Lanzamiento.md).
+
 ---
 
 ## 1. Requisitos
@@ -14,6 +16,8 @@ Repositorio: https://github.com/AlbaEH-APPs/App_Sorteo_Instagram (privado)
   - Un **token de acceso** de una app de Meta con *Instagram API with Instagram Login* y los permisos:
     - `instagram_business_basic`
     - `instagram_business_manage_comments`
+
+    Cómo conseguirlo: [Guía de lanzamiento, sección 3](Guia_Lanzamiento.md#3-conseguir-el-token-de-instagram).
 
 ## 2. Instalación (solo la primera vez)
 
@@ -53,6 +57,8 @@ $env:IG_TOKEN="tu_token"; npm start
 Abre http://localhost:3001
 
 > La variable `$env:IG_TOKEN` solo dura mientras esa ventana de PowerShell esté abierta. Si abres otra terminal, tendrás que volver a ponerla.
+>
+> Para que el token no quede guardado en el historial de PowerShell, usa mejor `$env:IG_TOKEN = Read-Host "Pega el token"` (ver la [Guía de lanzamiento](Guia_Lanzamiento.md#42-arrancar-con-el-token)).
 
 En macOS / Linux: `IG_TOKEN=tu_token npm start`
 
@@ -143,16 +149,21 @@ Cómo se cuentan las menciones:
 
 **No se comprueba automáticamente** si siguen la cuenta o si han dado like, porque la API no lo permite. Se verifica a mano y solo con quien sale elegido.
 
-## 6. Archivos que genera: `resultados/`
+## 6. Archivos que genera
 
-Cada sorteo genera tres archivos con un identificador `fecha-hora-xxxxxx`:
+Cada sorteo genera tres archivos con un identificador `fecha-hora-xxxxxx`. Se guardan en un sitio u otro según dónde corra la app:
+
+- **En tu ordenador:** en la carpeta `resultados/`.
+- **En Vercel:** en la base de datos (Upstash Redis).
+
+En los dos casos se pueden ver y descargar desde el botón **Historial** de la app. El CSV lleva una marca al principio para que Excel muestre bien los acentos y emojis.
 
 | Archivo | Cuándo se crea | Contenido |
 |---|---|---|
 | `…-orden.json` | Al pulsar ¡Sortear! | Configuración, publicación, nº de comentarios y **orden completo** fijado |
 | `…-comentarios.csv` | Al pulsar ¡Sortear! | Todos los comentarios con `valido` y `motivo` de descarte |
 | `…-resultado.json` | Al terminar o al cerrar sin terminar | Lo anterior + `estado` (`terminado` o `cancelado`), ganadores, descartados en la verificación (y por qué) y suplentes |
-| `en-curso.json` | Mientras hay un sorteo sin terminar | Orden y progreso del sorteo actual. Se borra solo al terminarlo o cancelarlo. **No lo borres a mano** |
+| `en-curso.json` | Mientras hay un sorteo sin terminar | Orden y progreso del sorteo actual. Se borra solo al terminarlo o cancelarlo. **No lo borres a mano**. No aparece en el Historial |
 
 Sirven como **prueba de transparencia** del sorteo si alguien la pide.
 
@@ -163,7 +174,9 @@ Sirven como **prueba de transparencia** del sorteo si alguien la pide.
 ```
 App_Sorteo_Instagram/
 ├── server/                 Servidor Node (sin dependencias externas)
-│   ├── index.mjs           Servidor HTTP: rutas de la API, guarda resultados y sirve la web
+│   ├── app.mjs             La API: rutas, contraseña de acceso, caché y lógica del sorteo en curso
+│   ├── almacen.mjs         Dónde se guarda todo: archivos en local, Upstash Redis en Vercel
+│   ├── index.mjs           Servidor local: sirve la API y la web compilada
 │   ├── instagram.mjs       Llamadas a la API de Instagram (graph.instagram.com)
 │   ├── demo.mjs            Datos inventados para el modo demo
 │   └── sorteo.mjs          Lógica del sorteo: bases por defecto, filtrado y barajado
@@ -174,21 +187,41 @@ App_Sorteo_Instagram/
 │       ├── api.js              Llamadas al servidor
 │       ├── styles.css
 │       └── components/
+│           ├── Login.jsx       Pantalla de contraseña
 │           ├── Setup.jsx       Pantalla de preparación
 │           ├── Stage.jsx       Pantalla del sorteo en directo
+│           ├── Historial.jsx   Sorteos anteriores y descarga de sus archivos
 │           ├── Reel.jsx        Animación de nombres
 │           └── Confetti.jsx    Confeti del ganador
+├── api/
+│   └── index.mjs           Punto de entrada en Vercel (usa server/app.mjs)
+├── vercel.json             Configuración de Vercel: compilación, rutas /api y tiempo máximo
 ├── vite.config.js          Configuración de Vite (raíz en client/, proxy /api → 3001)
 ├── package.json
 ├── README.md
-└── Documentacion.md        Este documento
+├── Documentacion.md        Este documento
+└── Guia_Lanzamiento.md     Paso a paso: ordenador, token de Instagram y Vercel
 ```
+
+### Contraseña de acceso
+
+Si existe la variable `APP_PASSWORD`, la app pide contraseña antes de nada:
+
+- Al acertarla, el servidor da una sesión de 12 horas en una cookie firmada (`HttpOnly`, `SameSite=Strict` y, en Vercel, `Secure`).
+- Toda la API, salvo iniciar sesión, la exige.
+- Tras 10 intentos fallidos desde la misma conexión (o 50 en total), se bloquea durante 15 minutos.
+- Cambiar la contraseña cierra todas las sesiones.
+
+En **Vercel es obligatoria**: sin ella la app no funciona, para que nunca quede abierta a cualquiera. En tu ordenador es opcional; sin ella no se pide.
 
 ### API del servidor
 
 | Ruta | Para qué |
 |---|---|
-| `GET /api/status` | Modo (demo/instagram) y cuenta conectada |
+| `GET /api/session` | Si hace falta contraseña y si ya hay sesión (pública) |
+| `POST /api/login` | Comprueba la contraseña y abre la sesión (pública) |
+| `POST /api/logout` | Cierra la sesión (pública) |
+| `GET /api/status` | Modo (demo/instagram), cuenta conectada y dónde se guardan los datos |
 | `GET /api/posts` | Últimas 20 publicaciones |
 | `POST /api/preview` | Recuento de participantes con la configuración elegida (usa los comentarios en caché; `refrescar: true` los vuelve a descargar) |
 | `GET /api/draw/current` | Sorteo sin terminar, si lo hay |
@@ -196,11 +229,16 @@ App_Sorteo_Instagram/
 | `POST /api/draw/progress` | Guarda cada decisión de la verificación (comprueba que sigue el orden) |
 | `POST /api/draw/finish` | Guarda `resultado.json` como `terminado` |
 | `POST /api/draw/cancel` | Guarda `resultado.json` como `cancelado` |
+| `GET /api/historial` | Últimos 50 sorteos con su estado y ganadores |
+| `GET /api/archivo?id=…&tipo=…` | Descarga `orden.json`, `comentarios.csv` o `resultado.json` de un sorteo |
+
+Todas las peticiones `POST` deben enviarse como JSON. Así otra web no puede enviarlas con un formulario aprovechando tu sesión.
 
 ## 8. Cosas a tener en cuenta
 
 - **Si algo se corta a mitad de un sorteo**, vuelve a arrancar el servidor y abre la web: aparecerá "Hay un sorteo sin terminar" para continuarlo (ver sección 4).
-- **Los comentarios nuevos no aparecen en el recuento** hasta que pulses *Actualizar* o *¡Sortear!*, porque se guardan en caché. La caché se vacía al reiniciar el servidor.
+- **Los comentarios nuevos no aparecen en el recuento** hasta que pulses *Actualizar* o *¡Sortear!*, porque se guardan en caché. En tu ordenador la caché se vacía al reiniciar el servidor; en Vercel dura 6 horas.
+- **Para usar la app desde el móvil**, publícala en Vercel: [Guía de lanzamiento, sección 7](Guia_Lanzamiento.md#7-publicar-en-vercel-usar-desde-el-móvil).
 - **El token no se guarda en ningún archivo**: solo se lee de la variable `IG_TOKEN`. No lo escribas en el código ni lo subas al repo. Si algún día usas un archivo `.env`, ya está en `.gitignore`.
 - **Caducidad del token**: los tokens de Instagram caducan (los de larga duración, a los 60 días aprox.). Si sale un error `Instagram: ... (código 190)`, normalmente toca renovar el token.
 - **Si la web muestra** "Abre la web con 'npm run dev'… o compílala con 'npm run build'", falta ejecutar `npm run build` antes de `npm start`.

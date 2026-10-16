@@ -237,13 +237,15 @@ export default function Stage({ sorteoInicial, post, config, pool, totalParticip
               Descartados en la verificación: {descartados.map((d) => `@${d.username}`).join(", ")}
             </p>
           )}
-          {guardado && <p className="muted small">Guardado en {guardado}</p>}
+          {guardado && <p className="muted small">Resultado guardado. Puedes descargarlo en Historial.</p>}
         </div>
       )}
 
       <footer className="stage__foot">
         <button className="btn btn--ghost" onClick={onExit}>← Volver</button>
-        <button className="btn btn--ghost" onClick={pantallaCompleta}>Pantalla completa</button>
+        {document.fullscreenEnabled && (
+          <button className="btn btn--ghost" onClick={pantallaCompleta}>Pantalla completa</button>
+        )}
       </footer>
     </main>
   );

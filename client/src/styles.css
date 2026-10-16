@@ -214,3 +214,42 @@ a { color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   .ready__orb, .reel--moving .reel__row--main, .reel--stopped .reel__row--main, .card { animation: none; }
 }
+
+/* ── barra superior: acciones ─────────────────────────── */
+.topbar { flex-wrap: wrap; gap: 10px; }
+.topbar__right { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.btn--small { padding: 7px 12px; font-size: 14px; border-radius: 10px; }
+a.btn { display: inline-block; text-decoration: none; color: inherit; }
+
+/* ── inicio de sesión ─────────────────────────── */
+.login { display: grid; place-items: center; padding-top: 8vh; }
+.login__form { width: min(380px, 100%); display: grid; gap: 14px; }
+
+/* ── historial ─────────────────────────── */
+.historial { display: grid; gap: 14px; max-width: 760px; margin: 0 auto; }
+.historial__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sorteo { display: grid; gap: 6px; }
+.sorteo__top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sorteo__files { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.chip--terminado { color: var(--ok); border-color: rgba(94, 224, 194, 0.45); }
+.chip--cancelado { color: var(--bad); border-color: rgba(255, 107, 107, 0.45); }
+.chip--en-curso, .chip--sin-terminar { color: var(--accent); border-color: rgba(255, 181, 71, 0.4); }
+
+/* ── móvil ─────────────────────────── */
+@media (max-width: 560px) {
+  .app { padding: 14px 16px 28px; }
+  .topbar { margin-bottom: 16px; }
+  /* 16px evita que el iPhone haga zoom al tocar un campo */
+  .field input { font-size: 16px; }
+  .btn--huge { padding: 18px 40px; }
+  .ready__orb { width: 120px; height: 120px; font-size: 56px; }
+  .card { padding: 16px; }
+  /* el nombre elegido se parte en varias líneas antes que cortarse */
+  .reel--stopped .reel__row--main { white-space: normal; overflow-wrap: anywhere; }
+  .winners__name { overflow-wrap: anywhere; }
+  .links { gap: 10px; }
+  .links a { flex: 1; padding: 12px; border: 1px solid var(--line); border-radius: 12px; font-size: 15px; }
+  .pendiente__btns { width: 100%; }
+  .pendiente__btns .btn { flex: 1; }
+  .stage__foot { opacity: 1; }
+}
