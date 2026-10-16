@@ -22,6 +22,8 @@ function almacenArchivos(dir) {
   const enCurso = path.join(dir, "en-curso.json");
   const cache = new Map();
   const contadores = new Map();
+  const dirValores = path.join(dir, ".datos");
+  const archivoValor = (clave) => path.join(dirValores, `${clave.replace(/[^\w-]/g, "_")}.json`);
 
   return {
     tipo: "archivos",
@@ -88,7 +90,33 @@ function almacenArchivos(dir) {
       }
       return ++c.n;
     },
+
+    // Valores sueltos (token de Instagram, enlaces de conexión), con caducidad opcional
+    leer: leerValor,
+    async guardar(clave, valor, segundos) {
+      fs.mkdirSync(dirValores, { recursive: true });
+      const hasta = segundos ? Date.now() + segundos * 1000 : null;
+      fs.writeFileSync(archivoValor(clave), JSON.stringify({ valor, hasta }));
+    },
+    // Lee y borra a la vez: para lo que solo se puede usar una vez
+    async tomar(clave) {
+      const v = await leerValor(clave);
+      fs.rmSync(archivoValor(clave), { force: true });
+      return v;
+    },
+    async borrar(clave) {
+      fs.rmSync(archivoValor(clave), { force: true });
+    },
   };
+
+  async function leerValor(clave) {
+    try {
+      const { valor, hasta } = JSON.parse(fs.readFileSync(archivoValor(clave), "utf8"));
+      return hasta && hasta < Date.now() ? null : valor;
+    } catch {
+      return null;
+    }
+  }
 }
 
 // ── Upstash Redis (API REST, sin librerías) ─────────────────────────────
@@ -150,6 +178,19 @@ function almacenRedis(url, token) {
       const n = await redis("INCR", `${P}contador:${clave}`);
       if (n === 1) await redis("EXPIRE", `${P}contador:${clave}`, segundos);
       return n;
+    },
+
+    leer: (clave) => leerJSON(`${P}valor:${clave}`),
+    async guardar(clave, valor, segundos) {
+      const extra = segundos ? ["EX", segundos] : [];
+      await redis("SET", `${P}valor:${clave}`, JSON.stringify(valor), ...extra);
+    },
+    async tomar(clave) {
+      const v = await redis("GETDEL", `${P}valor:${clave}`);
+      return v == null ? null : JSON.parse(v);
+    },
+    async borrar(clave) {
+      await redis("DEL", `${P}valor:${clave}`);
     },
   };
 }

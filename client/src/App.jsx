@@ -4,6 +4,7 @@ import Setup from "./components/Setup.jsx";
 import Stage from "./components/Stage.jsx";
 import Login from "./components/Login.jsx";
 import Historial from "./components/Historial.jsx";
+import Instagram from "./components/Instagram.jsx";
 
 const CONFIG_INICIAL = {
   ganadores: 1,
@@ -83,12 +84,15 @@ export default function App() {
         </div>
         <div className="topbar__right">
           {status && (
-            <div className={`chip ${status.modo === "demo" ? "chip--demo" : ""}`}>
-              {status.modo === "demo" ? "Modo demo" : `@${status.cuenta}`}
+            <div className={`chip ${status.modo === "demo" ? "chip--demo" : status.cuenta ? "" : "chip--cancelado"}`}>
+              {status.modo === "demo" ? "Modo demo" : status.cuenta ? `@${status.cuenta}` : "Instagram: error"}
             </div>
           )}
-          {sesion?.autenticado && vista === "setup" && (
-            <button className="btn btn--ghost btn--small" onClick={() => setVista("historial")}>Historial</button>
+          {sesion?.autenticado && status && vista === "setup" && (
+            <>
+              <button className="btn btn--ghost btn--small" onClick={() => setVista("instagram")}>Instagram</button>
+              <button className="btn btn--ghost btn--small" onClick={() => setVista("historial")}>Historial</button>
+            </>
           )}
           {sesion?.autenticado && sesion.necesitaLogin && vista !== "stage" && (
             <button className="btn btn--ghost btn--small" onClick={salir}>Salir</button>
@@ -108,6 +112,19 @@ export default function App() {
       )}
 
       {sesion?.autenticado && vista === "historial" && <Historial onVolver={() => setVista("setup")} />}
+
+      {sesion?.autenticado && status && vista === "instagram" && (
+        <Instagram
+          status={status}
+          onVolver={() => setVista("setup")}
+          onCambio={() => {
+            // Otra cuenta: lo elegido de la anterior ya no vale
+            setPost(null);
+            setPreview(null);
+            api.status().then(setStatus).catch((e) => setError(e.message));
+          }}
+        />
+      )}
 
       {sesion?.autenticado && status && vista === "setup" && pendiente && (
         <div className="pendiente">

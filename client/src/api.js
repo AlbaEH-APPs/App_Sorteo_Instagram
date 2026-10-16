@@ -34,3 +34,8 @@ export const api = {
   historial: () => request("GET", "/api/historial"),
   archivoUrl: (id, tipo) => `/api/archivo?id=${encodeURIComponent(id)}&tipo=${encodeURIComponent(tipo)}`,
 };
+
+export const instagram = {
+  crearEnlace: () => request("POST", "/api/ig/enlace"),
+  desconectar: () => request("POST", "/api/ig/desconectar"),
+};

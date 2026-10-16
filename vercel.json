@@ -3,5 +3,6 @@
   "buildCommand": "npm run build",
   "outputDirectory": "client/dist",
   "rewrites": [{ "source": "/api/:ruta*", "destination": "/api/index?__ruta=:ruta*" }],
-  "functions": { "api/index.mjs": { "maxDuration": 60 } }
+  "functions": { "api/index.mjs": { "maxDuration": 60 } },
+  "crons": [{ "path": "/api/ig/refresh", "schedule": "0 6 * * *" }]
 }

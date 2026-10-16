@@ -16,6 +16,7 @@ La app se puede usar de dos formas:
 | [5. Renovar el token](#5-renovar-el-token-antes-de-que-caduque) | Antes de que caduque |
 | [6. Problemas frecuentes](#6-problemas-frecuentes) | Si algo falla |
 | [7. Publicar en Vercel (usar desde el móvil)](#7-publicar-en-vercel-usar-desde-el-móvil) | Una vez, y al cambiar el código o el token |
+| [8. Conectar la cuenta con un enlace](#8-conectar-la-cuenta-de-instagram-con-un-enlace) | Cuando la cuenta del sorteo es de otra persona (recomendado en Vercel) |
 
 ---
 
@@ -90,6 +91,8 @@ Pulsa `Ctrl + C` en la terminal.
 ---
 
 ## 3. Conseguir el token de Instagram
+
+> **¿La cuenta del sorteo es de otra persona, o vas a usar la app en Vercel?** Haz los pasos 3.1 a 3.4 y 3.6 de esta sección y después sigue la **[sección 8](#8-conectar-la-cuenta-de-instagram-con-un-enlace)**. Con un enlace, esa persona conecta su cuenta desde su móvil, sin darte la contraseña, y el permiso se renueva solo.
 
 El token es la "llave" que deja a la app leer los comentarios de la cuenta. Se consigue en el panel de desarrolladores de Meta y **dura 60 días**.
 
@@ -290,7 +293,7 @@ El repo está en la organización de GitHub `AlbaEH-APPs`. El plan gratuito de V
 | B. Mover el repo a tu cuenta personal | En GitHub: *Settings → Danger Zone → Transfer ownership* a `AlbaErdociainHerrero97` | Se publica sola en cada `git push`. Cambia la dirección del repo (habría que actualizar el remoto con `git remote set-url`) |
 | C. Hacer el repo público | En GitHub: *Settings → Danger Zone → Change visibility* | Se publica sola en cada `git push`. El código queda a la vista de todos (no contiene ningún secreto: el token y la contraseña van en Vercel) |
 
-Esta guía sigue la **opción A**. Si eliges B o C, en el paso 7.3 importa el repo desde https://vercel.com/new en lugar de usar la terminal; el resto de pasos es igual.
+> **Lo que se eligió: opción C.** El repo es público y está conectado a Vercel, así que **cada `git push` publica la app sola** (tarda uno o dos minutos). Los pasos de la terminal (`npx vercel`) solo hicieron falta la primera vez.
 
 ### 7.2 Crear la cuenta de Vercel
 
@@ -382,13 +385,15 @@ Igual que la sección 4.4, con estas diferencias:
 
 ### 7.9 Cuando cambies el código
 
-Desde el ordenador, después de hacer tus cambios:
+Sube los cambios a GitHub y Vercel los publica solo:
 
 ```powershell
-npx vercel --prod
+git add -A
+git commit -m "Describe el cambio"
+git push
 ```
 
-(Con las opciones B o C del paso 7.1, basta con `git push`.)
+Puedes seguir la publicación en el panel de Vercel, en **Deployments**. Si falla, ahí aparece el motivo.
 
 ### 7.10 Cuando renueves el token o cambies la contraseña
 
@@ -408,3 +413,92 @@ Cambiar `APP_PASSWORD` **cierra todas las sesiones abiertas**: útil si crees qu
 | Te pide la contraseña cada vez | Las sesiones duran 12 horas. Si te la pide antes, revisa que el navegador no esté en modo incógnito ni bloquee cookies |
 | `Instagram: ... (código 190)` | El token ha caducado: renuévalo (sección 5) y sigue el paso 7.10 |
 | Error al publicar con `npx vercel` | Copia el mensaje: suele indicar qué falta |
+
+---
+
+## 8. Conectar la cuenta de Instagram con un enlace
+
+Sirve cuando **la cuenta del sorteo es de otra persona** (por ejemplo, una amiga que vive lejos). Tú creas un enlace desde la app y se lo mandas. Ella lo abre en su móvil, inicia sesión en Instagram y pulsa **Permitir**. Ya está:
+
+- **No te da su contraseña** ni tiene que compartir pantalla.
+- **Nadie copia ni pega el token**: la app lo recibe y lo guarda directamente en la base de datos.
+- **El permiso se renueva solo**. Dura 60 días y la app lo renueva cuando le quedan menos de 50, al usarla o con una comprobación automática diaria. Solo habría que repetir el enlace si la app pasara **más de 60 días** sin renovarlo, o si ella retirara el permiso desde Instagram.
+
+> Funciona **solo con la app publicada en Vercel**: Instagram exige una dirección `https://`.
+
+### 8.1 Lo que necesitas antes
+
+1. La app de Meta creada, con los dos permisos (pasos **3.2 a 3.4**).
+2. La cuenta de tu amiga como **Tester de Instagram** de tu app (paso **3.6**), con la invitación **aceptada** por ella.
+3. La app publicada en Vercel (sección **7**) y saber su dirección, por ejemplo `https://sorteo-en-directo.vercel.app`. La ves en el panel de Vercel → tu proyecto → **Domains**.
+
+### 8.2 Copiar las claves de la app de Meta (tú, una vez)
+
+1. En https://developers.facebook.com/apps abre tu app.
+2. Ve a **Casos de uso → Personalizar** (el de Instagram) → **Configuración de la API con el inicio de sesión para empresas de Instagram** (*API setup with Instagram business login*).
+3. Baja al apartado **3. Configurar el inicio de sesión para empresas de Instagram** (*Set up Instagram business login*) y pulsa **Configuración del inicio de sesión para empresas** (*Business login settings*).
+4. Ahí verás:
+   - **Identificador de la app de Instagram** (*Instagram App ID*): un número. Cópialo.
+   - **Clave secreta de la app de Instagram** (*Instagram app secret*): pulsa **Mostrar** (*Show*) y cópiala. Es secreta: no la compartas.
+
+   > Cuidado: son las de **Instagram**, no el "Identificador de la app" que sale arriba del todo en el panel, que es otro número distinto.
+
+5. En ese mismo sitio, en **URI de redireccionamiento de OAuth** (*OAuth redirect URIs*), añade **exactamente** (con tu dirección):
+   ```
+   https://sorteo-en-directo.vercel.app/api/ig/callback
+   ```
+   Sin barra al final. Si Meta añade una barra `/` al final al guardar, quítala y guarda otra vez.
+6. Pulsa **Guardar** (*Save*).
+
+### 8.3 Poner las claves en Vercel (tú, una vez)
+
+En Vercel → tu proyecto → **Settings → Environment Variables**, añade:
+
+| Key | Value | Type |
+|---|---|---|
+| `IG_APP_ID` | El *Instagram App ID* | Config |
+| `IG_APP_SECRET` | El *Instagram app secret* | **Secret** |
+
+Environment: *Production*. Guarda y vuelve a publicar: **Deployments → ⋯ → Redeploy**.
+
+> Si pusiste antes la variable `IG_TOKEN`, puedes dejarla o borrarla. La cuenta conectada con enlace tiene preferencia.
+
+### 8.4 Crear y mandar el enlace (tú, desde el móvil)
+
+1. Abre la app **en su dirección principal** (la de *Domains*, no una dirección de prueba con letras raras) y entra con tu contraseña.
+2. Arriba, pulsa **Instagram**.
+3. Pulsa **Crear enlace de conexión**.
+4. Pulsa **Compartir** y mándaselo por WhatsApp, o **Copiar** y pégalo donde quieras.
+
+El enlace **vale para un solo uso y caduca en 24 horas**. Si caduca, crea otro.
+
+### 8.5 Lo que hace tu amiga (desde su móvil)
+
+Puedes reenviarle estas instrucciones tal cual:
+
+> 1. Abre el enlace que te he mandado.
+> 2. Se abrirá Instagram: inicia sesión con tu cuenta, si no lo estás ya.
+> 3. Verás que la app "Sorteo en directo" pide ver tu perfil y gestionar tus comentarios. Pulsa **Permitir**.
+> 4. Saldrá una página que dice **"¡Cuenta conectada!"**. Ya puedes cerrarla.
+>
+> La app solo lee los comentarios para el sorteo: no publica nada ni ve tu contraseña. Puedes quitarle el permiso cuando quieras desde Instagram → Configuración → Apps y sitios web.
+
+### 8.6 Comprobar
+
+1. En la app, en la pantalla **Instagram**, pulsa **Comprobar de nuevo**.
+2. Tiene que poner **Conectada @cuenta_de_tu_amiga** y la fecha hasta la que dura el permiso.
+3. Arriba a la derecha aparece **@cuenta_de_tu_amiga** en lugar de "Modo demo".
+4. Vuelve atrás: ya puedes elegir sus publicaciones y preparar el sorteo.
+
+### 8.7 Si algo falla
+
+| Qué pasa | Qué hacer |
+|---|---|
+| En la app: "Faltan IG_APP_ID e IG_APP_SECRET" | Haz el paso 8.3 y vuelve a publicar |
+| A tu amiga, Instagram le dice que la app no está disponible, o un error de permisos | Comprueba que aceptó la invitación de **Tester** (paso 3.6) |
+| A tu amiga, Instagram le da un error de *redirect_uri* / "URL no válida" | La dirección del paso 8.2.5 no coincide **exactamente** con la de la app. Revisa que es `https://…/api/ig/callback`, sin barra al final, y que creaste el enlace desde la dirección principal |
+| Tu amiga ve "Enlace caducado" | Ya se usó o pasaron 24 h: crea uno nuevo |
+| Tu amiga ve "No se ha conectado" | Pulsó cancelar en Instagram: crea uno nuevo |
+| Tu amiga ve "No se ha podido conectar" y un mensaje de Instagram | Mándame ese mensaje. Suele ser la clave secreta mal copiada (paso 8.3) |
+| En la app: "El permiso de @… caducó" | Crea un enlace nuevo y repetid los pasos 8.4 y 8.5 |
+| En la app: "Instagram: … (código 190)" | Ella ha quitado el permiso o ha cambiado la contraseña: crea un enlace nuevo |

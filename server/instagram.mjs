@@ -12,10 +12,10 @@ const ESPERAS = [1000, 3000]; // ms antes de cada reintento
 const TIEMPO_MAXIMO = 20000; // ms por petición
 const CODIGOS_TEMPORALES = new Set([1, 2]); // error desconocido / servicio no disponible por un momento
 
-async function pedir(u) {
+async function pedir(u, opciones = {}) {
   let res, data;
   try {
-    res = await fetch(u, { signal: AbortSignal.timeout(TIEMPO_MAXIMO) });
+    res = await fetch(u, { ...opciones, signal: AbortSignal.timeout(TIEMPO_MAXIMO) });
     data = await res.json();
   } catch {
     // Sin conexión, tiempo agotado o respuesta que no es JSON (no se incluye la URL: lleva el token)
@@ -26,6 +26,10 @@ async function pedir(u) {
     e.status = 502;
     e.reintentable = res.status >= 500 || data.error.is_transient === true || CODIGOS_TEMPORALES.has(data.error.code);
     throw e;
+  }
+  // Los errores del inicio de sesión vienen con otra forma
+  if (data.error_message) {
+    throw Object.assign(new Error(`Instagram: ${data.error_message} (${data.error_type || data.code})`), { status: 502 });
   }
   return data;
 }
@@ -106,4 +110,45 @@ export function createInstagram(token) {
       }));
     },
   };
+}
+
+// ── Conectar una cuenta con "Iniciar sesión con Instagram" ─────────────────────────────
+// Documentación: Instagram API with Instagram Login > Business Login for Instagram
+export const PERMISOS = ["instagram_business_basic", "instagram_business_manage_comments"];
+
+export function urlAutorizacion({ appId, redirectUri, estado }) {
+  const u = new URL("https://www.instagram.com/oauth/authorize");
+  u.searchParams.set("client_id", appId);
+  u.searchParams.set("redirect_uri", redirectUri);
+  u.searchParams.set("response_type", "code");
+  u.searchParams.set("scope", PERMISOS.join(","));
+  u.searchParams.set("state", estado);
+  return u.toString();
+}
+
+// Cambia el código que devuelve Instagram por un token de 60 días. El código solo vale una vez,
+// así que este primer paso no se reintenta.
+export async function obtenerToken({ appId, appSecret, redirectUri, codigo }) {
+  const corto = await pedir("https://api.instagram.com/oauth/access_token", {
+    method: "POST",
+    body: new URLSearchParams({
+      client_id: appId,
+      client_secret: appSecret,
+      grant_type: "authorization_code",
+      redirect_uri: redirectUri,
+      code: codigo.replace(/#_$/, ""),
+    }),
+  });
+  const tokenCorto = corto.data?.[0]?.access_token || corto.access_token;
+  if (!tokenCorto) throw Object.assign(new Error("Instagram no ha devuelto el permiso"), { status: 502 });
+  const largo = await get(
+    url("/access_token", { grant_type: "ig_exchange_token", client_secret: appSecret }, tokenCorto)
+  );
+  return { token: largo.access_token, segundos: largo.expires_in };
+}
+
+// Da otros 60 días a un token que tenga más de 24 horas y no haya caducado
+export async function renovarToken(token) {
+  const r = await get(url("/refresh_access_token", { grant_type: "ig_refresh_token" }, token));
+  return { token: r.access_token, segundos: r.expires_in };
 }

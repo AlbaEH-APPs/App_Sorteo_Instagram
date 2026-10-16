@@ -1,18 +1,45 @@
 // API del sorteo: habla con Instagram, hace el sorteo y guarda los resultados.
 // La usan igual el servidor local (server/index.mjs) y Vercel (api/index.mjs).
 import crypto from "node:crypto";
-import { createInstagram } from "./instagram.mjs";
+import { createInstagram, urlAutorizacion, obtenerToken, renovarToken } from "./instagram.mjs";
 import { createDemo } from "./demo.mjs";
 import { filtrar, barajar, normalizarConfig } from "./sorteo.mjs";
 import { crearAlmacen, TIPOS } from "./almacen.mjs";
 
 const error = (msg, status) => Object.assign(new Error(msg), { status });
 const EN_VERCEL = Boolean(process.env.VERCEL);
+const DIA = 24 * 3600e3;
 
-class Descarga {
-  constructor(nombre, tipo, contenido) {
-    Object.assign(this, { nombre, tipo, contenido });
+// Respuesta que no es JSON: una descarga, una página o una redirección
+class Respuesta {
+  constructor(status, cabeceras, contenido = "") {
+    Object.assign(this, { status, cabeceras, contenido });
   }
+}
+
+const descarga = (nombre, tipo, contenido) =>
+  new Respuesta(200, { "Content-Type": tipo, "Content-Disposition": `attachment; filename="${nombre}"` }, contenido);
+
+const redireccion = (url) => new Respuesta(302, { Location: url });
+
+const escapar = (t) => String(t).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
+// Página sencilla para quien abre el enlace de conexión (no tiene la app abierta)
+function pagina(titulo, texto, ok) {
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapar(titulo)}</title>
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0e0b16;color:#f6f1ff;
+font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:16px;box-sizing:border-box}
+main{max-width:420px;text-align:center;background:#1b1529;border:1px solid #2d2540;border-radius:18px;padding:28px 22px}
+.i{font-size:52px}h1{font-size:22px;margin:10px 0}p{color:#a69cbd;line-height:1.5;margin:0}</style></head>
+<body><main><div class="i">${ok ? "✅" : "⚠️"}</div><h1>${escapar(titulo)}</h1><p>${escapar(texto)}</p></main></body></html>`;
+  return new Respuesta(ok ? 200 : 400, { "Content-Type": "text/html; charset=utf-8" }, html);
+}
+
+// Dirección pública de la app (https://….vercel.app), tal como la ha abierto quien crea el enlace
+function origen(req) {
+  const proto = String(req.headers["x-forwarded-proto"] || (EN_VERCEL ? "https" : "http")).split(",")[0];
+  return `${proto}://${req.headers["x-forwarded-host"] || req.headers.host}`;
 }
 
 function json(res, status, data, cabeceras = {}) {
@@ -69,7 +96,15 @@ function validarProgreso(sorteo, body) {
 // En Vercel es obligatoria: sin ella la app no funciona, para que nunca quede abierta a cualquiera.
 const PASSWORD = process.env.APP_PASSWORD || "";
 const SESION_HORAS = 12;
-const PUBLICAS = new Set(["/api/session", "/api/login", "/api/logout"]);
+// Las de /api/ig/ son para quien abre el enlace de conexión y para la renovación diaria de Vercel
+const PUBLICAS = new Set([
+  "/api/session",
+  "/api/login",
+  "/api/logout",
+  "/api/ig/conectar",
+  "/api/ig/callback",
+  "/api/ig/refresh",
+]);
 const sha = (t) => crypto.createHash("sha256").update(t).digest();
 const claveSesion = sha(`sesion|${PASSWORD}`); // cambiar la contraseña cierra todas las sesiones
 
@@ -89,11 +124,53 @@ function cookieSesion(req, valor, segundos) {
   return `sesion=${valor}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${segundos}${segura ? "; Secure" : ""}`;
 }
 
+// Para conectar una cuenta con enlace (Meta → Instagram → API setup with Instagram login)
+const IG_APP_ID = process.env.IG_APP_ID || "";
+const IG_APP_SECRET = process.env.IG_APP_SECRET || "";
+
 export function crearApp({ dirResultados }) {
-  const TOKEN = process.env.IG_TOKEN;
-  const modo = TOKEN ? "instagram" : "demo";
-  const ig = TOKEN ? createInstagram(TOKEN) : createDemo();
   const almacen = crearAlmacen(dirResultados);
+
+  // ── Cuenta de Instagram ─────────────────────────────
+  // Por orden: la conectada con el enlace (guardada como "ig-token"), la variable IG_TOKEN o el modo demo.
+  // Se mira en cada petición: al conectar o desconectar una cuenta no hace falta volver a publicar.
+  let actual = { token: undefined, ig: null };
+  let cuenta = null; // Promise<{ username }> de la cuenta actual
+  let renovando = null;
+
+  const caducada = (c) => Date.parse(c.caduca) <= Date.now();
+
+  // Pide otros 60 días a Instagram cuando al token le quedan menos de 50
+  // (ocurre al usar la app o, si no se usa, en la comprobación diaria de Vercel)
+  function renovarSiToca(c) {
+    const edad = Date.now() - Date.parse(c.obtenido);
+    const quedan = Date.parse(c.caduca) - Date.now();
+    if (quedan <= 0 || edad < DIA || quedan > 50 * DIA) return c;
+    renovando ??= renovarToken(c.token)
+      .then(async (r) => {
+        const nueva = { ...c, token: r.token, obtenido: new Date().toISOString(), caduca: new Date(Date.now() + r.segundos * 1000).toISOString() };
+        await almacen.guardar("ig-token", nueva);
+        console.log(`Permiso de Instagram de @${c.usuario} renovado hasta ${nueva.caduca}`);
+        return nueva;
+      })
+      .catch((e) => {
+        console.warn(`No se pudo renovar el permiso de Instagram: ${e.message}`);
+        return c;
+      })
+      .finally(() => (renovando = null));
+    return renovando;
+  }
+
+  async function cliente() {
+    let conexion = await almacen.leer("ig-token");
+    if (conexion) conexion = await renovarSiToca(conexion);
+    const token = conexion && !caducada(conexion) ? conexion.token : process.env.IG_TOKEN || "";
+    if (token !== actual.token) {
+      actual = { token, ig: token ? createInstagram(token) : createDemo() };
+      cuenta = null;
+    }
+    return { ig: actual.ig, modo: token ? "instagram" : "demo", conexion };
+  }
 
   async function enCursoConId(id) {
     const c = await almacen.leerEnCurso();
@@ -118,9 +195,8 @@ export function crearApp({ dirResultados }) {
   // Comentarios ya descargados de cada publicación. Así, cambiar las bases solo vuelve a filtrar;
   // la descarga se repite al pulsar "Actualizar" y siempre al sortear.
   const enVuelo = new Map(); // descargas en marcha, para no repetir la misma a la vez
-  let cuenta = null; // Promise<{ username }>
 
-  function miCuenta() {
+  function miCuenta(ig) {
     cuenta ??= ig.me().catch((e) => {
       cuenta = null;
       throw e;
@@ -128,7 +204,7 @@ export function crearApp({ dirResultados }) {
     return cuenta;
   }
 
-  async function descargar(postId, incluirRespuestas, refrescar) {
+  async function descargar(ig, postId, incluirRespuestas, refrescar) {
     const clave = `${postId}|${incluirRespuestas ? 1 : 0}`;
     if (!refrescar && !enVuelo.has(clave)) {
       const guardado = await almacen.cacheLeer(clave);
@@ -150,12 +226,13 @@ export function crearApp({ dirResultados }) {
 
   async function participantes(postId, config, refrescar = false) {
     const cfg = normalizarConfig(config);
+    const { ig, modo } = await cliente();
     const [yo, { post, comentarios, leidoEn }] = await Promise.all([
-      miCuenta(),
-      descargar(postId, cfg.incluirRespuestas, refrescar),
+      miCuenta(ig),
+      descargar(ig, postId, cfg.incluirRespuestas, refrescar),
     ]);
     const { participantes, registro } = filtrar(comentarios, yo.username.toLowerCase(), cfg);
-    return { cfg, post, comentarios, leidoEn, participantes, registro };
+    return { cfg, modo, post, comentarios, leidoEn, participantes, registro };
   }
 
   const rutas = {
@@ -182,12 +259,32 @@ export function crearApp({ dirResultados }) {
     },
 
     // ── Sorteo ──
+    // Si Instagram falla (permiso caducado o retirado) se informa sin romper la app,
+    // para poder llegar a la pantalla de Instagram y conectar de nuevo
     "GET /api/status": async () => {
-      const yo = await miCuenta();
-      return { modo, cuenta: yo.username, almacen: almacen.tipo, sesion: Boolean(PASSWORD) };
+      const { ig, modo, conexion } = await cliente();
+      let usuario = null;
+      let errorInstagram = null;
+      try {
+        usuario = (await miCuenta(ig)).username;
+      } catch (e) {
+        errorInstagram = e.message;
+      }
+      return {
+        modo,
+        cuenta: usuario,
+        almacen: almacen.tipo,
+        sesion: Boolean(PASSWORD),
+        instagram: {
+          puedeConectar: Boolean(IG_APP_ID && IG_APP_SECRET),
+          origen: conexion && !caducada(conexion) ? "enlace" : process.env.IG_TOKEN ? "variable" : null,
+          conectada: conexion ? { usuario: conexion.usuario, caduca: conexion.caduca, caducada: caducada(conexion) } : null,
+          error: errorInstagram,
+        },
+      };
     },
 
-    "GET /api/posts": async () => ({ posts: await ig.posts() }),
+    "GET /api/posts": async () => ({ posts: await (await cliente()).ig.posts() }),
 
     // Vista previa: cuántos participan con la configuración elegida
     "POST /api/preview": async ({ body }) => {
@@ -217,7 +314,7 @@ export function crearApp({ dirResultados }) {
     "POST /api/draw": async ({ body }) => {
       const pendiente = error("Hay un sorteo sin terminar. Continúalo o ciérralo antes de empezar otro.", 409);
       if (await almacen.leerEnCurso()) throw pendiente;
-      const { cfg, post, comentarios, participantes: p, registro } = await participantes(body.postId, body.config, true);
+      const { cfg, modo, post, comentarios, participantes: p, registro } = await participantes(body.postId, body.config, true);
       if (p.length === 0) throw error("No hay participantes válidos", 400);
 
       const orden = barajar(p);
@@ -297,7 +394,73 @@ export function crearApp({ dirResultados }) {
       const contenido = await almacen.leerArchivo(id, tipo);
       if (contenido == null) throw error("Archivo no encontrado", 404);
       const mime = tipo.endsWith(".csv") ? "text/csv; charset=utf-8" : "application/json; charset=utf-8";
-      return new Descarga(`${id}-${tipo}`, mime, contenido);
+      return descarga(`${id}-${tipo}`, mime, contenido);
+    },
+
+    // ── Conectar la cuenta de Instagram con un enlace ──
+    // 1. Quien organiza crea un enlace de un solo uso (24 h) y se lo manda a quien tiene la cuenta.
+    "POST /api/ig/enlace": async ({ req }) => {
+      if (!IG_APP_ID || !IG_APP_SECRET) {
+        throw error("Faltan IG_APP_ID e IG_APP_SECRET en la configuración. Mira la Guía de lanzamiento.", 400);
+      }
+      const estado = crypto.randomBytes(24).toString("base64url");
+      const base = origen(req);
+      await almacen.guardar(`ig-estado:${estado}`, { redirectUri: `${base}/api/ig/callback` }, 24 * 3600);
+      return { url: `${base}/api/ig/conectar?e=${estado}`, caduca: new Date(Date.now() + DIA).toISOString() };
+    },
+
+    // 2. Quien tiene la cuenta abre el enlace y va a Instagram a iniciar sesión y dar permiso
+    "GET /api/ig/conectar": async ({ query }) => {
+      const estado = query.get("e") || "";
+      const datos = /^[\w-]{20,}$/.test(estado) && (await almacen.leer(`ig-estado:${estado}`));
+      if (!datos) return pagina("Enlace caducado", "Este enlace ya se ha usado o ha caducado. Pide uno nuevo.", false);
+      return redireccion(urlAutorizacion({ appId: IG_APP_ID, redirectUri: datos.redirectUri, estado }));
+    },
+
+    // 3. Instagram vuelve aquí con un código, que se cambia por un permiso de 60 días y se guarda
+    "GET /api/ig/callback": async ({ query }) => {
+      const estado = query.get("state") || "";
+      const datos = /^[\w-]{20,}$/.test(estado) && (await almacen.tomar(`ig-estado:${estado}`));
+      if (!datos) return pagina("Enlace caducado", "Este enlace ya se ha usado o ha caducado. Pide uno nuevo.", false);
+      if (query.get("error") || !query.get("code")) {
+        return pagina("No se ha conectado", "No se ha dado permiso en Instagram. Pide un enlace nuevo para intentarlo otra vez.", false);
+      }
+      try {
+        const { token, segundos } = await obtenerToken({
+          appId: IG_APP_ID,
+          appSecret: IG_APP_SECRET,
+          redirectUri: datos.redirectUri,
+          codigo: query.get("code"),
+        });
+        const { username } = await createInstagram(token).me();
+        await almacen.guardar("ig-token", {
+          token,
+          usuario: username,
+          obtenido: new Date().toISOString(),
+          caduca: new Date(Date.now() + segundos * 1000).toISOString(),
+        });
+        console.log(`Cuenta de Instagram conectada: @${username}`);
+        return pagina("¡Cuenta conectada!", `La cuenta @${username} ya está conectada a la app del sorteo. Puedes cerrar esta página.`, true);
+      } catch (e) {
+        console.error(e.message);
+        return pagina("No se ha podido conectar", `${e.message}. Pide un enlace nuevo para intentarlo otra vez.`, false);
+      }
+    },
+
+    // Renovación diaria (Vercel Cron, ver vercel.json). Solo renueva si toca; si no, no hace nada.
+    "GET /api/ig/refresh": async ({ req }) => {
+      if (process.env.CRON_SECRET && req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
+        throw error("No autorizado", 401);
+      }
+      const conexion = await almacen.leer("ig-token");
+      if (!conexion) return { ok: true, renovado: false };
+      const nueva = await renovarSiToca(conexion);
+      return { ok: true, renovado: nueva !== conexion };
+    },
+
+    "POST /api/ig/desconectar": async () => {
+      await almacen.borrar("ig-token");
+      return { ok: true };
     },
   };
 
@@ -320,12 +483,8 @@ export function crearApp({ dirResultados }) {
       }
       const body = req.method === "POST" ? await leerBody(req) : {};
       const r = await handler({ req, body, query: url.searchParams, cabeceras });
-      if (r instanceof Descarga) {
-        res.writeHead(200, {
-          "Content-Type": r.tipo,
-          "Content-Disposition": `attachment; filename="${r.nombre}"`,
-          "Cache-Control": "no-store",
-        });
+      if (r instanceof Respuesta) {
+        res.writeHead(r.status, { ...r.cabeceras, "Cache-Control": "no-store" });
         return res.end(r.contenido);
       }
       json(res, 200, r, cabeceras);

@@ -191,11 +191,12 @@ App_Sorteo_Instagram/
 │           ├── Setup.jsx       Pantalla de preparación
 │           ├── Stage.jsx       Pantalla del sorteo en directo
 │           ├── Historial.jsx   Sorteos anteriores y descarga de sus archivos
+│           ├── Instagram.jsx   Cuenta conectada y enlace para conectarla
 │           ├── Reel.jsx        Animación de nombres
 │           └── Confetti.jsx    Confeti del ganador
 ├── api/
 │   └── index.mjs           Punto de entrada en Vercel (usa server/app.mjs)
-├── vercel.json             Configuración de Vercel: compilación, rutas /api y tiempo máximo
+├── vercel.json             Configuración de Vercel: compilación, rutas /api, tiempo máximo y renovación diaria
 ├── vite.config.js          Configuración de Vite (raíz en client/, proxy /api → 3001)
 ├── package.json
 ├── README.md
@@ -231,6 +232,18 @@ En **Vercel es obligatoria**: sin ella la app no funciona, para que nunca quede 
 | `POST /api/draw/cancel` | Guarda `resultado.json` como `cancelado` |
 | `GET /api/historial` | Últimos 50 sorteos con su estado y ganadores |
 | `GET /api/archivo?id=…&tipo=…` | Descarga `orden.json`, `comentarios.csv` o `resultado.json` de un sorteo |
+| `POST /api/ig/enlace` | Crea un enlace de conexión de Instagram, de un solo uso y válido 24 h |
+| `GET /api/ig/conectar?e=…` | Quien abre el enlace va a Instagram a dar permiso (pública) |
+| `GET /api/ig/callback` | Instagram vuelve aquí: el código se cambia por un permiso de 60 días y se guarda (pública) |
+| `GET /api/ig/refresh` | Renueva el permiso si le quedan menos de 50 días. La llama Vercel Cron cada día (pública; exige `CRON_SECRET` si existe) |
+| `POST /api/ig/desconectar` | Borra la cuenta conectada con enlace |
+
+**Qué cuenta de Instagram se usa**, por orden:
+1. La conectada con enlace, guardada en el almacén como `ig-token`.
+2. La variable `IG_TOKEN`.
+3. El modo demo.
+
+Se comprueba en cada petición, así que al conectar o desconectar no hace falta volver a publicar. Ver [Guía de lanzamiento, sección 8](Guia_Lanzamiento.md#8-conectar-la-cuenta-de-instagram-con-un-enlace).
 
 Todas las peticiones `POST` deben enviarse como JSON. Así otra web no puede enviarlas con un formulario aprovechando tu sesión.
 
