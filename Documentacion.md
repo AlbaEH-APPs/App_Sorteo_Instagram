@@ -2,9 +2,15 @@
 
 App para hacer sorteos de Instagram en directo: lee los comentarios de una publicación con la API oficial, filtra los válidos según las bases, fija un orden al azar y muestra en pantalla la animación, la verificación manual y el resultado.
 
-Repositorio: https://github.com/AlbaEH-APPs/App_Sorteo_Instagram (privado)
+| | |
+|---|---|
+| **Repositorio** | https://github.com/AlbaEH-APPs/App_Sorteo_Instagram (**público**: el código está a la vista, pero no contiene ningún secreto) |
+| **App publicada** | https://sorteo-en-directo.vercel.app (Vercel, plan Hobby, protegida con contraseña) |
+| **Base de datos** | Upstash Redis `sorteo-datos` (plan Free, región Washington `iad1`, conectada desde Vercel → Storage) |
+| **App de Meta** | *Sorteos-IG*, caso de uso de Instagram con `instagram_business_basic` e `instagram_business_manage_comments` |
+| **Variables en Vercel** | `APP_PASSWORD`, `IG_APP_ID`, `IG_APP_SECRET` (y opcionalmente `IG_TOKEN`). Las de Upstash (`KV_REST_API_URL`, `KV_REST_API_TOKEN`) las pone Vercel sola |
 
-> **Para poner en marcha la app paso a paso** (modo prueba, producción y cómo conseguir el token de Instagram), consulta la [Guía de lanzamiento](Guia_Lanzamiento.md).
+> **Para poner en marcha la app paso a paso** (modo prueba, producción, token de Instagram, Vercel y conectar una cuenta con un enlace), consulta la [Guía de lanzamiento](Guia_Lanzamiento.md).
 
 ---
 
@@ -243,7 +249,9 @@ En **Vercel es obligatoria**: sin ella la app no funciona, para que nunca quede 
 2. La variable `IG_TOKEN`.
 3. El modo demo.
 
-Se comprueba en cada petición, así que al conectar o desconectar no hace falta volver a publicar. Ver [Guía de lanzamiento, sección 8](Guia_Lanzamiento.md#8-conectar-la-cuenta-de-instagram-con-un-enlace).
+Se comprueba en cada petición, así que al conectar o desconectar no hace falta volver a publicar.
+
+El permiso conectado con enlace se guarda **en Upstash Redis** cuando la app corre en Vercel, y en `resultados/.datos/` cuando corre en tu ordenador (carpeta fuera de Git). Los enlaces de conexión se guardan igual, caducan a las 24 h y se borran al usarse. Ver [Guía de lanzamiento, sección 8](Guia_Lanzamiento.md#8-conectar-la-cuenta-de-instagram-con-un-enlace).
 
 Todas las peticiones `POST` deben enviarse como JSON. Así otra web no puede enviarlas con un formulario aprovechando tu sesión.
 
@@ -257,6 +265,8 @@ Todas las peticiones `POST` deben enviarse como JSON. Así otra web no puede env
 - **Si la web muestra** "Abre la web con 'npm run dev'… o compílala con 'npm run build'", falta ejecutar `npm run build` antes de `npm start`.
 - **Si la web muestra** "No se pudo conectar con el servidor", el servidor no está arrancado.
 - **Antes del directo**, ensaya una vez en modo demo y otra con tu cuenta, para comprobar que el token funciona y que el recuento de participantes es el esperado.
+- **En Upstash, "Eviction" debe estar desactivado.** Si se activa, al llenarse la base de datos se borrarían datos (un sorteo en curso o resultados).
+- **El Historial mezcla sorteos de prueba y reales.** Se distinguen por la fecha y la publicación; los hechos en modo demo llevan la etiqueta *demo*.
 
 ## 9. Copias de seguridad (Git)
 
@@ -267,3 +277,19 @@ git add -A
 git commit -m "Describe el cambio"
 git push
 ```
+
+Si el repo está conectado a Vercel, cada `git push` publica la app. Si no aparece una publicación nueva en Vercel → *Deployments*, publica con `npx vercel --prod` (ver [Guía de lanzamiento, 7.9](Guia_Lanzamiento.md#79-cuando-cambies-el-código)).
+
+## 10. Mejoras pendientes
+
+Ideas comentadas que **todavía no están hechas**, de más a menos útil:
+
+| Mejora | Por qué |
+|---|---|
+| Elegir publicaciones más antiguas que las 20 últimas (pegar el enlace del post o "cargar más") | Si el sorteo es de un post antiguo, ahora no se puede seleccionar |
+| Botón para borrar sorteos del Historial | Para quitar los de prueba |
+| Modo demo más realista (miles de comentarios, retrasos y errores simulados) | Para ensayar la caché, los reintentos y la reanudación sin token |
+| Tests automáticos de `server/sorteo.mjs` (con `node:test`, sin instalar nada) | Verificar las reglas (menciones, plazo, excluidos, una participación por persona) antes de un sorteo real |
+| No contar correos como menciones (`ana@gmail.com` cuenta `@gmail.com` como mención) | Hoy un comentario con un correo puede sumar una mención de más |
+| En local, aceptar conexiones solo desde el propio ordenador (`127.0.0.1`) | Ahora cualquier dispositivo de la misma wifi puede abrir la app local si no tiene contraseña |
+| Avisar en la app cuando el permiso de Instagram está a punto de caducar sin poder renovarse | Hoy se ve en la pantalla Instagram, pero no hay aviso activo |

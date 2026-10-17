@@ -147,8 +147,19 @@ Si la cuenta de Instagram es de otra persona (por ejemplo, de un cliente), no po
 
 1. En el panel de la app, ve a **Roles de la app → Roles → Añadir personas** y elige **Tester de Instagram**.
 2. Escribe el nombre de usuario de la cuenta de Instagram y envía la invitación.
-3. La persona dueña de la cuenta la acepta desde Instagram en el navegador: **Configuración → Apps y sitios web → Invitaciones de tester**.
-4. Después ya se puede hacer el paso 3.5, iniciando sesión con esa cuenta (lo puede hacer ella o contigo delante).
+3. La persona dueña de la cuenta la acepta. **Solo se puede desde la web de Instagram, no desde la app**, aunque sí desde el navegador del móvil:
+   1. Abrir **Safari o Chrome** (no la app de Instagram) e ir a:
+      ```
+      https://www.instagram.com/accounts/manage_access/
+      ```
+      Es la página **Apps y sitios web**. Si pide iniciar sesión, entrar con la cuenta del sorteo.
+   2. Pestaña **Invitaciones de tester** (*Tester invites*) → **Aceptar** en tu app.
+   - Si el enlace abre la app de Instagram: mantenerlo pulsado y elegir *Abrir en Safari/Chrome*, o pegar la dirección en la barra del navegador.
+   - Si no se ven las pestañas: activar en el navegador **"Ver versión para ordenador"** y recargar.
+   - Si no aparece ninguna invitación: comprobar en Meta → **Roles de la app → Roles** que el usuario está bien escrito, y enviarla otra vez.
+4. Después ya se puede conectar la cuenta. **Lo recomendado es con un enlace (sección 8)**: la persona lo hace desde su móvil, sin dar su contraseña.
+
+> **Si no usas Vercel** y necesitas el token a mano (paso 3.5) con una cuenta que no es tuya y la persona vive lejos: haced una **videollamada con control remoto** (Google Meet, AnyDesk o Chrome Remote Desktop). Tú abres el paso 3.5 en tu ordenador y, cuando sale la ventana de Instagram, ella escribe su usuario y contraseña con el control remoto. Al terminar, cerrad la sesión de su Instagram en tu navegador. Este token habrá que renovarlo cada menos de 60 días (sección 5).
 
 ### 3.7 ¿Hace falta la revisión de Meta ("App Review")?
 
@@ -309,7 +320,7 @@ En la terminal, dentro de la carpeta del proyecto:
 npx vercel login
 ```
 
-Elige **Continue with GitHub** y acepta en el navegador. Después:
+Puede salir un aviso sobre *telemetry* (estadísticas de uso de la herramienta): es normal. Después se abre el navegador o aparece un enlace con un código, del tipo `Visit https://vercel.com/device and enter ABCD-EFGH`. Pulsa Intro para abrirlo, comprueba que el código coincide y acepta con **Continue with GitHub**. La terminal dirá *Success*. Después:
 
 ```powershell
 npx vercel
@@ -321,10 +332,11 @@ Te hará unas preguntas. Responde así:
 |---|---|
 | Set up and deploy? | `Y` |
 | Which scope? | Tu cuenta personal |
-| Link to existing project? | `N` |
+| *Search all projects* / *Create a new project* (o *Link to existing project?*) | **Create a new project** (o `N`): es la primera vez |
 | Project name? | `sorteo-en-directo` (o el que quieras) |
 | In which directory is your code located? | `./` (Intro) |
-| Want to modify these settings? | `N` (la configuración ya está en `vercel.json`) |
+| Connect this Git repository to automatically deploy changes on every push? | `Y` si el repo es **público** (opción C de 7.1); `N` si es privado de una organización |
+| Want to modify these settings? / Customize settings? | `N`: la configuración ya está en `vercel.json`. Si antes muestra *Framework: Vite* u otra carpeta de salida, no pasa nada |
 
 Al terminar muestra una dirección de prueba. **Todavía no funcionará**: faltan la base de datos y la contraseña. Al abrirla verás un mensaje en rojo que lo indica, y eso es lo esperado.
 
@@ -334,10 +346,13 @@ Al terminar muestra una dirección de prueba. **Todavía no funcionará**: falta
 2. Ve a la pestaña **Storage** y pulsa **Create Database** (o *Connect Database*).
 3. En el catálogo (*Marketplace*) elige **Upstash** → **Redis** y pulsa **Continue**.
 4. Elige:
-   - **Plan:** *Free*.
-   - **Región:** *US East (Virginia)*, la misma zona en la que Vercel ejecuta la app por defecto, para que vaya más rápida.
-   - **Nombre:** por ejemplo `sorteo-datos`.
-5. Pulsa **Create** y, cuando te pregunte, **conéctala al proyecto** `sorteo-en-directo` (marca todos los entornos: *Production*, *Preview* y *Development*).
+   - **Primary Region:** *Washington, D.C., USA (East)* (`iad1`), la misma zona en la que Vercel ejecuta la app por defecto, para que vaya más rápida.
+   - **Read Regions:** vacío. No hace falta, y en los planes de pago cuesta dinero.
+   - **Eviction:** **desactivado**. Si se activa, cuando la base de datos se llena borra datos para hacer sitio, y podría borrar un sorteo en curso o resultados.
+   - **Plan:** *Free*. Da 500.000 operaciones al mes; un sorteo completo usa unas pocas decenas.
+   - **Resource Name:** por ejemplo `sorteo-datos`.
+5. Pulsa **Create** y, cuando te pregunte, **conéctala al proyecto** `sorteo-en-directo` (marca todos los entornos: *Production*, *Preview* y *Development*). Si pide un prefijo para las variables, déjalo vacío o con `KV`, el que venga por defecto.
+   - Si no te pide conectarla: proyecto → pestaña **Storage** → `sorteo-datos` → **Connect Project**.
 
 Vercel añade solo las variables `KV_REST_API_URL` y `KV_REST_API_TOKEN`. No hay que copiar nada.
 
@@ -350,9 +365,12 @@ En el proyecto de Vercel: **Settings → Environment Variables**. Añade:
 | `APP_PASSWORD` | La contraseña para entrar en la app | **Obligatoria.** Sin ella la app no funciona. Usa una larga y que no uses en otro sitio (por ejemplo, 4 o 5 palabras sueltas) |
 | `IG_TOKEN` | El token de Instagram (sección 3) | Opcional. Si no la pones, la app funciona en **modo demo** |
 
-En **Environments** deja marcado *Production* (y los demás si quieres). Marca la opción **Sensitive** si aparece, para que el valor no se pueda volver a ver.
+Al añadir cada variable:
+- **Type:** elige **Secret** (no *Config*) para `APP_PASSWORD` e `IG_TOKEN`. Así nadie puede volver a ver el valor desde el panel, ni siquiera tú; si lo olvidas, pones uno nuevo.
+- **Environments:** *Production* es suficiente.
+- **Contraseña:** nada de `1234` ni similares. La app está en internet y cualquiera puede llegar a la pantalla de entrada; con el límite de intentos, una contraseña de 4 cifras aguantaría como mucho uno o dos días a alguien probando combinaciones. Mejor varias palabras sueltas, por ejemplo `lince-tostada-mar-violeta-27` (inventa la tuya), y guárdala en tu gestor de contraseñas.
 
-> Puedes empezar sin `IG_TOKEN` para probarlo todo desde el móvil en modo demo, y añadirlo cuando tengas el token.
+> Puedes empezar sin `IG_TOKEN` para probarlo todo desde el móvil en modo demo. Para conectar la cuenta real, **lo recomendado es con un enlace (sección 8)**, que no necesita `IG_TOKEN`.
 
 ### 7.6 Publicar la versión definitiva
 
@@ -362,7 +380,11 @@ Las variables solo se aplican al **volver a publicar**. En la terminal:
 npx vercel --prod
 ```
 
-Al final muestra la dirección definitiva, del tipo `https://sorteo-en-directo.vercel.app`. También la ves en el panel de Vercel, en **Domains**.
+Al final muestra la dirección definitiva. La de este proyecto es **`https://sorteo-en-directo.vercel.app`**. También la ves en el panel de Vercel, en **Domains**.
+
+**Otra forma, sin terminal (también desde el móvil):** pestaña **Deployments** → en la fila de arriba, los **tres puntos (⋯)** de la derecha, junto a la foto → **Redeploy**. Úsala cuando cambies una variable (contraseña, token, claves) sin cambiar el código.
+
+> **Comprueba que se ha publicado la versión correcta.** En **Deployments**, la fila de arriba muestra el mensaje y el código del último commit (por ejemplo `80ece04`). Si es más antiguo que tu último `git push`, Redeploy volvería a publicar la versión vieja: publica con `npx vercel --prod` (ver 7.9).
 
 ### 7.7 Probar desde el móvil
 
@@ -395,6 +417,15 @@ git push
 
 Puedes seguir la publicación en el panel de Vercel, en **Deployments**. Si falla, ahí aparece el motivo.
 
+**Si después de un `git push` no aparece ninguna publicación nueva en Deployments:**
+1. Publica igualmente desde la terminal, que siempre funciona:
+   ```powershell
+   npx vercel --prod
+   ```
+2. Revisa la conexión con GitHub: proyecto → **Settings → Git**.
+   - Si no hay ningún repositorio conectado: **Connect Git Repository** → `AlbaEH-APPs/App_Sorteo_Instagram`.
+   - Si está conectado y aun así no publica: puede que Vercel esté bloqueando el repo de organización. Sigue publicando con `npx vercel --prod`.
+
 ### 7.10 Cuando renueves el token o cambies la contraseña
 
 1. En Vercel: **Settings → Environment Variables**, edita `IG_TOKEN` o `APP_PASSWORD` y guarda.
@@ -426,28 +457,39 @@ Sirve cuando **la cuenta del sorteo es de otra persona** (por ejemplo, una amiga
 
 > Funciona **solo con la app publicada en Vercel**: Instagram exige una dirección `https://`.
 
+**¿Por qué hay pasos que haces tú antes del enlace?** Cuando alguien pulsa el enlace, la app le dice a Instagram: *"soy la app Sorteos-IG; deja que esta persona me dé permiso y devuélvela a esta dirección"*. Para creérselo, Instagram necesita las claves de tu app (`IG_APP_ID` e `IG_APP_SECRET`) y tener registrada la dirección de vuelta (`…/api/ig/callback`), para no mandar nunca el permiso a una web falsa. Es como dar de alta la app en Instagram, **una sola vez**.
+
+| Quién | Qué | Cuándo |
+|---|---|---|
+| Tú | Claves en Meta y en Vercel (8.2 y 8.3) | **Una sola vez** |
+| Tú | Invitarla como Tester (3.6) | Una vez por cada cuenta |
+| Quien tiene la cuenta | Cuenta profesional y aceptar la invitación de Tester (8.5) | Una vez |
+| Tú | Crear el enlace y mandarlo (8.4) | Cada vez que se conecta una cuenta; casi nunca, porque se renueva sola |
+| Quien tiene la cuenta | Abrir el enlace y pulsar **Permitir** (8.5) | Lo mismo |
+
 ### 8.1 Lo que necesitas antes
 
 1. La app de Meta creada, con los dos permisos (pasos **3.2 a 3.4**).
 2. La cuenta de tu amiga como **Tester de Instagram** de tu app (paso **3.6**), con la invitación **aceptada** por ella.
-3. La app publicada en Vercel (sección **7**) y saber su dirección, por ejemplo `https://sorteo-en-directo.vercel.app`. La ves en el panel de Vercel → tu proyecto → **Domains**.
+3. La app publicada en Vercel (sección **7**), en su **última versión**: arriba tiene que aparecer el botón **Instagram**. Si no aparece, publica con `npx vercel --prod`.
+4. Saber su dirección: en este proyecto, `https://sorteo-en-directo.vercel.app`. La ves en el panel de Vercel → tu proyecto → **Domains**.
 
 ### 8.2 Copiar las claves de la app de Meta (tú, una vez)
 
 1. En https://developers.facebook.com/apps abre tu app.
 2. Ve a **Casos de uso → Personalizar** (el de Instagram) → **Configuración de la API con el inicio de sesión para empresas de Instagram** (*API setup with Instagram business login*).
-3. Baja al apartado **3. Configurar el inicio de sesión para empresas de Instagram** (*Set up Instagram business login*) y pulsa **Configuración del inicio de sesión para empresas** (*Business login settings*).
-4. Ahí verás:
-   - **Identificador de la app de Instagram** (*Instagram App ID*): un número. Cópialo.
-   - **Clave secreta de la app de Instagram** (*Instagram app secret*): pulsa **Mostrar** (*Show*) y cópiala. Es secreta: no la compartas.
+3. En la franja de arriba de esa página verás:
+   - **Identificador de la aplicación de Instagram** (*Instagram App ID*): un número. Cópialo.
+   - **Clave secreta de la aplicación de Instagram** (*Instagram app secret*): pulsa **Mostrar** y cópiala. Es secreta: no la compartas.
 
    > Cuidado: son las de **Instagram**, no el "Identificador de la app" que sale arriba del todo en el panel, que es otro número distinto.
 
-5. En ese mismo sitio, en **URI de redireccionamiento de OAuth** (*OAuth redirect URIs*), añade **exactamente** (con tu dirección):
+4. En el apartado **1. Añade los permisos**, pulsa **Add all required permissions** si aún no están añadidos. Los apartados **2** (identificadores de acceso) y **3** (webhooks) **no hacen falta**.
+5. En el apartado **4. Configura un inicio de sesión empresarial de Instagram**, pulsa **Configurar** y, en **URI de redireccionamiento de OAuth** (*OAuth redirect URIs*), añade **exactamente** esto. Si en la ventana hay más campos (por ejemplo *Embed URL*), ignóralos.
    ```
    https://sorteo-en-directo.vercel.app/api/ig/callback
    ```
-   Sin barra al final. Si Meta añade una barra `/` al final al guardar, quítala y guarda otra vez.
+   Tiene que empezar por **`https://`**, terminar en **`/api/ig/callback`**, sin barra al final y sin espacios. Poner solo `sorteo-en-directo.vercel.app` **no vale**: Instagram rechazaría la vuelta con un error de dirección no válida. Si Meta añade una barra `/` al final al guardar, quítala y guarda otra vez.
 6. Pulsa **Guardar** (*Save*).
 
 ### 8.3 Poner las claves en Vercel (tú, una vez)
@@ -465,6 +507,11 @@ Environment: *Production*. Guarda y vuelve a publicar: **Deployments → ⋯ →
 
 ### 8.4 Crear y mandar el enlace (tú, desde el móvil)
 
+Antes:
+- Espera a que tu amiga haya **aceptado la invitación de Tester** (8.5, primer mensaje). Si no, Instagram le dará un error.
+- Si queda algún **sorteo de prueba a medias**, termínalo o pulsa **Cerrar sin terminar**: con uno pendiente no se puede empezar otro.
+
+Después:
 1. Abre la app **en su dirección principal** (la de *Domains*, no una dirección de prueba con letras raras) y entra con tu contraseña.
 2. Arriba, pulsa **Instagram**.
 3. Pulsa **Crear enlace de conexión**.
@@ -474,14 +521,23 @@ El enlace **vale para un solo uso y caduca en 24 horas**. Si caduca, crea otro.
 
 ### 8.5 Lo que hace tu amiga (desde su móvil)
 
-Puedes reenviarle estas instrucciones tal cual:
+Puedes reenviarle estos mensajes tal cual. **El primero, en cuanto la hayas invitado como Tester (3.6)**:
 
-> 1. Abre el enlace que te he mandado.
-> 2. Se abrirá Instagram: inicia sesión con tu cuenta, si no lo estás ya.
-> 3. Verás que la app "Sorteo en directo" pide ver tu perfil y gestionar tus comentarios. Pulsa **Permitir**.
-> 4. Saldrá una página que dice **"¡Cuenta conectada!"**. Ya puedes cerrarla.
+> ¡Hola! Para conectar tu Instagram a la app del sorteo necesito que hagas dos cosas desde el móvil (son 2 minutos):
 >
-> La app solo lee los comentarios para el sorteo: no publica nada ni ve tu contraseña. Puedes quitarle el permiso cuando quieras desde Instagram → Configuración → Apps y sitios web.
+> **1. Que tu cuenta sea profesional** (si ya lo es, sáltate esto): en Instagram → tu perfil → ☰ → Configuración → *Tipo de cuenta y herramientas* → *Cambiar a cuenta profesional* → *Creador*.
+>
+> **2. Aceptar una invitación**: abre esta dirección en **Safari o Chrome** (no en la app de Instagram):
+> https://www.instagram.com/accounts/manage_access/
+> Entra en la pestaña **Invitaciones de tester** y pulsa **Aceptar** en "Sorteos-IG". Si no ves las pestañas, activa en el navegador "Ver versión para ordenador".
+>
+> Avísame cuando lo tengas y te mando un enlace.
+
+**El segundo, junto con el enlace (8.4):**
+
+> Abre este enlace en el móvil, inicia sesión en Instagram si te lo pide y pulsa **Permitir**. Te saldrá "¡Cuenta conectada!" y ya está.
+>
+> La app solo lee los comentarios para hacer el sorteo: no publica nada ni ve tu contraseña. Puedes quitarle el permiso cuando quieras en https://www.instagram.com/accounts/manage_access/
 
 ### 8.6 Comprobar
 
@@ -490,7 +546,27 @@ Puedes reenviarle estas instrucciones tal cual:
 3. Arriba a la derecha aparece **@cuenta_de_tu_amiga** en lugar de "Modo demo".
 4. Vuelve atrás: ya puedes elegir sus publicaciones y preparar el sorteo.
 
-### 8.7 Si algo falla
+### 8.7 Probar primero con tu cuenta y cambiar después a otra
+
+Se puede probar todo con una cuenta tuya y después conectar la de tu amiga. La app usa siempre **la última cuenta conectada con un enlace**: la nueva sustituye a la anterior automáticamente, sin borrar nada ni volver a publicar.
+
+**La cuenta de prueba** tiene que cumplir lo mismo que la definitiva:
+1. Ser **profesional** (3.1). Pasar tu cuenta personal a Creador es gratis y se puede deshacer.
+2. Ser **Tester de Instagram** de tu app (3.6), con la invitación aceptada. Puede haber varias cuentas tester a la vez.
+3. Tener **alguna publicación con comentarios** (mejor con menciones), para ver que la app los lee y los cuenta bien.
+
+**La prueba:** crea un enlace (8.4), ábrelo **tú** en el móvil con la cuenta de prueba, pulsa Permitir y haz un sorteo completo.
+
+**Para cambiar a la cuenta definitiva:**
+1. Termina o cierra cualquier sorteo de prueba a medias.
+2. Crea un **enlace nuevo** y mándaselo (8.4 y 8.5). Cuando lo acepte, pulsa **Comprobar de nuevo** y verás su cuenta.
+3. Opcional: quita el permiso de tu cuenta de prueba en https://www.instagram.com/accounts/manage_access/
+
+Ten en cuenta:
+- **Abre cada enlace con la cuenta correcta.** Si el navegador del móvil ya tiene otra cuenta de Instagram abierta, puede conectar esa. Si no ves la pantalla de inicio de sesión, revisa qué cuenta está activa antes de pulsar Permitir.
+- **El Historial guarda también los sorteos de prueba**, junto a los reales. Se distinguen por la fecha y la publicación. Todavía no hay botón para borrarlos (ver *Mejoras pendientes* en la Documentación).
+
+### 8.8 Si algo falla
 
 | Qué pasa | Qué hacer |
 |---|---|
