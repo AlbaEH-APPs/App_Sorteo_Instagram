@@ -11,7 +11,21 @@ export default function Instagram({ status, onCambio, onVolver }) {
   const [enlace, setEnlace] = useState(null);
   const [aviso, setAviso] = useState("");
   const [error, setError] = useState("");
+  const [yendo, setYendo] = useState(false);
   const ig = status.instagram;
+
+  // Conectar aquí mismo: va a Instagram en esta pestaña y, al dar permiso, la página ofrece volver a la app
+  const conectarAqui = () => {
+    setError("");
+    setYendo(true);
+    instagram
+      .crearEnlace(true)
+      .then((e) => location.assign(e.url))
+      .catch((e) => {
+        setError(e.message);
+        setYendo(false);
+      });
+  };
 
   const crear = () => {
     setError("");
@@ -98,7 +112,7 @@ export default function Instagram({ status, onCambio, onVolver }) {
       </section>
 
       <section className="panel sorteo">
-        <strong>Conectar una cuenta con un enlace</strong>
+        <strong>Conectar una cuenta</strong>
         {!ig.puedeConectar ? (
           <p className="hint">
             Para usar enlaces faltan las variables <code>IG_APP_ID</code> e <code>IG_APP_SECRET</code>. Mira la Guía de
@@ -106,13 +120,25 @@ export default function Instagram({ status, onCambio, onVolver }) {
           </p>
         ) : (
           <>
-            <p className="hint">
-              Manda el enlace a quien tenga la cuenta del sorteo. Lo abre en su móvil, inicia sesión en Instagram y
-              pulsa <em>Permitir</em>. No tiene que darte su contraseña. El enlace vale para un solo uso y caduca en
-              24 horas.
-            </p>
+            <div className="conectar">
+              <p className="conectar__titulo">Desde este dispositivo</p>
+              <p className="hint">
+                Si quien tiene la cuenta del sorteo está usando la app ahora: te lleva a Instagram, inicias sesión con
+                esa cuenta, pulsas <em>Permitir</em> y vuelves aquí.
+              </p>
+              <button className="btn btn--primary" onClick={conectarAqui} disabled={yendo}>
+                {yendo ? "Abriendo Instagram…" : "Conectar una cuenta desde este dispositivo"}
+              </button>
+            </div>
+            <div className="conectar">
+              <p className="conectar__titulo">Mandando un enlace a otra persona</p>
+              <p className="hint">
+                Lo abre en su móvil, inicia sesión en Instagram y pulsa <em>Permitir</em>. No tiene que darte su
+                contraseña ni entrar en la app. El enlace vale para un solo uso y caduca en 24 horas.
+              </p>
+            </div>
             {!enlace ? (
-              <button className="btn btn--primary" onClick={crear}>Crear enlace de conexión</button>
+              <button className="btn" onClick={crear}>Crear enlace de conexión</button>
             ) : (
               <>
                 <input className="enlace" readOnly value={enlace.url} onFocus={(e) => e.target.select()} />

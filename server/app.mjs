@@ -26,7 +26,8 @@ const redireccion = (url) => new Respuesta(302, { Location: url });
 const escapar = (t) => String(t).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 // Página sencilla para quien abre el enlace de conexión (no tiene la app abierta), con la marca
-function pagina(titulo, texto, ok) {
+// volver: dirección de la app, para mostrar el botón "Volver a la app" (solo si se conectó desde la propia app)
+function pagina(titulo, texto, ok, volver) {
   const marca = `${MARCA.nombre} by ${MARCA.firma}`;
   const c = MARCA.colores;
   const html = `<!doctype html><html lang="es"><head><meta charset="utf-8">
@@ -38,8 +39,9 @@ main{position:relative;max-width:420px;text-align:center;background:${c.papel};b
 padding:34px 22px 26px;box-shadow:0 10px 28px -14px rgba(90,66,44,.3)}
 main:before{content:"";position:absolute;top:-12px;left:50%;width:110px;height:24px;transform:translateX(-50%) rotate(-3deg);background:rgba(217,202,187,.75)}
 .m{font-family:"Dancing Script",cursive;font-size:28px;color:${c.topoOscuro};margin:0 0 6px}
-.i{width:56px;height:56px;margin:4px auto 0;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:28px;font-weight:800}.ok{background:#b8a08c}.ko{background:#a94f44}h1{font-size:22px;margin:8px 0 10px;font-weight:800}p{color:#7a6c60;line-height:1.5;margin:0}</style></head>
-<body><main><p class="m">${escapar(marca)}</p><div class="i ${ok ? "ok" : "ko"}">${ok ? "♥" : "!"}</div><h1>${escapar(titulo)}</h1><p>${escapar(texto)}</p></main></body></html>`;
+.i{width:56px;height:56px;margin:4px auto 0;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:28px;font-weight:800}.ok{background:#b8a08c}.ko{background:#a94f44}h1{font-size:22px;margin:8px 0 10px;font-weight:800}p{color:#7a6c60;line-height:1.5;margin:0}
+.b{display:inline-block;margin-top:18px;padding:12px 22px;border-radius:12px;background:${c.topoOscuro};color:#fff;font-weight:800;text-decoration:none}</style></head>
+<body><main><p class="m">${escapar(marca)}</p><div class="i ${ok ? "ok" : "ko"}">${ok ? "♥" : "!"}</div><h1>${escapar(titulo)}</h1><p>${escapar(texto)}</p>${volver ? `<a class="b" href="${escapar(volver)}">Volver a la app</a>` : ""}</main></body></html>`;
   return new Respuesta(ok ? 200 : 400, { "Content-Type": "text/html; charset=utf-8" }, html);
 }
 
@@ -441,13 +443,15 @@ export function crearApp({ dirResultados }) {
 
     // ── Conectar la cuenta de Instagram con un enlace ──
     // 1. Quien organiza crea un enlace de un solo uso (24 h) y se lo manda a quien tiene la cuenta.
-    "POST /api/ig/enlace": async ({ req }) => {
+    // Con { directo: true } es para conectar desde el propio dispositivo: al acabar, la página ofrece volver a la app.
+    "POST /api/ig/enlace": async ({ req, body }) => {
       if (!IG_APP_ID || !IG_APP_SECRET) {
         throw error("Faltan IG_APP_ID e IG_APP_SECRET en la configuración. Mira la Guía de lanzamiento.", 400);
       }
       const estado = crypto.randomBytes(24).toString("base64url");
       const base = origen(req);
-      await almacen.guardar(`ig-estado:${estado}`, { redirectUri: `${base}/api/ig/callback` }, 24 * 3600);
+      const datos = { redirectUri: `${base}/api/ig/callback`, volver: body.directo ? `${base}/` : null };
+      await almacen.guardar(`ig-estado:${estado}`, datos, 24 * 3600);
       return { url: `${base}/api/ig/conectar?e=${estado}`, caduca: new Date(Date.now() + DIA).toISOString() };
     },
 
@@ -465,7 +469,7 @@ export function crearApp({ dirResultados }) {
       const datos = /^[\w-]{20,}$/.test(estado) && (await almacen.tomar(`ig-estado:${estado}`));
       if (!datos) return pagina("Enlace caducado", "Este enlace ya se ha usado o ha caducado. Pide uno nuevo.", false);
       if (query.get("error") || !query.get("code")) {
-        return pagina("No se ha conectado", "No se ha dado permiso en Instagram. Pide un enlace nuevo para intentarlo otra vez.", false);
+        return pagina("No se ha conectado", "No se ha dado permiso en Instagram. Pide un enlace nuevo para intentarlo otra vez.", false, datos.volver);
       }
       try {
         const { token, segundos } = await obtenerToken({
@@ -482,10 +486,12 @@ export function crearApp({ dirResultados }) {
           caduca: new Date(Date.now() + segundos * 1000).toISOString(),
         });
         console.log(`Cuenta de Instagram conectada: @${username}`);
-        return pagina("¡Cuenta conectada!", `La cuenta @${username} ya está conectada a la app del sorteo. Puedes cerrar esta página.`, true);
+        return datos.volver
+          ? pagina("¡Cuenta conectada!", `La cuenta @${username} ya está conectada a la app del sorteo.`, true, datos.volver)
+          : pagina("¡Cuenta conectada!", `La cuenta @${username} ya está conectada a la app del sorteo. Puedes cerrar esta página.`, true);
       } catch (e) {
         console.error(e.message);
-        return pagina("No se ha podido conectar", `${e.message}. Pide un enlace nuevo para intentarlo otra vez.`, false);
+        return pagina("No se ha podido conectar", `${e.message}. Pide un enlace nuevo para intentarlo otra vez.`, false, datos.volver);
       }
     },
 

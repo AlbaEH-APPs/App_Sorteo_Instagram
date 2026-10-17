@@ -38,6 +38,6 @@ export const api = {
 };
 
 export const instagram = {
-  crearEnlace: () => request("POST", "/api/ig/enlace"),
+  crearEnlace: (directo = false) => request("POST", "/api/ig/enlace", { directo }),
   desconectar: () => request("POST", "/api/ig/desconectar"),
 };

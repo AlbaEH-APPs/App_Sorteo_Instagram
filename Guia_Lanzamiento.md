@@ -394,7 +394,7 @@ Al final muestra la dirección definitiva. La de este proyecto es **`https://sor
 2. Comprueba arriba a la derecha: **"Modo demo"** o `@tu_cuenta`, según hayas puesto el token o no.
 3. Haz un sorteo de prueba completo, como en el paso 2.3, incluido recargar la página a mitad.
 4. Pulsa **Historial** y descarga uno de los archivos.
-5. Truco: en el menú del navegador, **"Añadir a pantalla de inicio"**, para abrirla como una app.
+5. Instálala en la pantalla de inicio para abrirla como una app más (ver **7.11**).
 
 Al iniciar sesión, la sesión dura **12 horas**. Pasado ese tiempo, la app vuelve a pedir la contraseña. Un sorteo a medias no se pierde: al volver a entrar aparece para continuarlo.
 
@@ -436,7 +436,34 @@ Puedes seguir la publicación en el panel de Vercel, en **Deployments**. Si fall
 
 Cambiar `APP_PASSWORD` **cierra todas las sesiones abiertas**: útil si crees que alguien la conoce.
 
-### 7.11 Problemas frecuentes en Vercel
+### 7.11 Instalarla en el móvil como una app
+
+La app se puede añadir a la pantalla de inicio del móvil:
+- sale **con el logo de Kalidoskopio** de icono y el nombre **"Kalidoskopio"** debajo,
+- y se abre **a pantalla completa, sin la barra del navegador**, que además queda mejor en las grabaciones.
+
+No hace falta ninguna tienda de apps.
+
+**En Android (Chrome):**
+1. Abre `https://sorteo-en-directo.vercel.app` en **Chrome**.
+2. Pulsa el menú **⋮** (arriba a la derecha).
+3. Elige **"Añadir a pantalla de inicio"** o **"Instalar aplicación"**, según la versión.
+4. Confirma con **Instalar** o **Añadir**. El icono aparece en la pantalla de inicio o en el cajón de aplicaciones.
+
+**En iPhone (Safari):**
+1. Abre `https://sorteo-en-directo.vercel.app` en **Safari**. En iOS recientes también funciona desde Chrome.
+2. Pulsa el botón **Compartir** (el cuadrado con la flecha hacia arriba), abajo en Safari o arriba en Chrome.
+3. Baja y elige **"Añadir a pantalla de inicio"**. Si no aparece, pulsa **"Editar acciones"** al final de la lista y añádelo.
+4. Deja el nombre **"Kalidoskopio"** y pulsa **Añadir**.
+
+**A tener en cuenta:**
+- **La primera vez que la abras desde el icono te pedirá la contraseña**, aunque ya hubieras entrado en el navegador. Sobre todo en iPhone, la app instalada guarda su sesión aparte. Como siempre, la sesión dura 12 horas.
+- **Las actualizaciones llegan solas**: cuando publicas cambios, se ven al volver a abrirla. No hay que reinstalar nada.
+- **Ver su perfil** y **Ver la publicación** abren Instagram. Para volver, usa el selector de apps del móvil. Si la app se recargara, pulsa **Continuar sorteo**.
+- **Para conectar una cuenta de Instagram "desde este dispositivo"** (8.4 bis), mejor hazlo desde el **navegador** y no desde el icono. En iPhone, Instagram podría devolverte a Safari en lugar de a la app instalada. Una vez conectada, la app instalada ya la usa.
+- **Para quitarla:** mantén pulsado el icono → **Eliminar** o **Desinstalar**. No borra ningún sorteo; los datos están en el servidor.
+
+### 7.12 Problemas frecuentes en Vercel
 
 | Qué ves | Qué hacer |
 |---|---|
@@ -521,6 +548,19 @@ Después:
 4. Pulsa **Compartir** y mándaselo por WhatsApp, o **Copiar** y pégalo donde quieras.
 
 El enlace **vale para un solo uso y caduca en 24 horas**. Si caduca, crea otro.
+
+### 8.4 bis. Otra forma: que ella conecte su cuenta desde la propia app
+
+Si le das **la dirección de la app y la contraseña** (`APP_PASSWORD`), puede hacerlo ella sola, sin que le mandes ningún enlace:
+
+1. Abre `https://sorteo-en-directo.vercel.app` en su móvil y entra con la contraseña.
+2. Pulsa **Instagram** → **Conectar una cuenta desde este dispositivo**.
+3. Instagram le pide iniciar sesión (con **su** cuenta) y pulsar **Permitir**.
+4. Sale **"¡Cuenta conectada!"** con el botón **Volver a la app**.
+
+Ten en cuenta:
+- **La invitación de Tester (3.6) sigue haciendo falta.** Es una regla de Meta, entre por donde entre.
+- **Con la contraseña tiene acceso a todo**: hacer sorteos, ver, descargar y borrar el Historial, y desconectar la cuenta. Hay una sola contraseña, sin permisos distintos por persona. Si solo quieres que conecte su cuenta, mejor el enlace (8.4).
 
 ### 8.5 Lo que hace tu amiga (desde su móvil)
 

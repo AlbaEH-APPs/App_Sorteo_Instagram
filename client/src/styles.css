@@ -395,3 +395,9 @@ a.btn { display: inline-block; text-decoration: none; }
 @keyframes aparece { from { opacity: 0; } }
 @keyframes sube { from { opacity: 0; transform: translateY(14px) scale(0.97); } }
 @media (prefers-reduced-motion: reduce) { .dialogo__fondo, .dialogo { animation: none; } }
+
+/* ── conectar una cuenta de Instagram: dos formas ─────────────────────────── */
+.conectar { display: grid; gap: 6px; padding-top: 12px; margin-top: 4px; border-top: 1px dashed var(--line); }
+.conectar:first-of-type { border-top: 0; padding-top: 0; }
+.conectar__titulo { margin: 0; font-weight: 800; font-size: 15px; }
+.conectar .btn { justify-self: start; }

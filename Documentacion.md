@@ -202,6 +202,7 @@ App_Sorteo_Instagram/
 │   └── sorteo.mjs          Lógica del sorteo: bases por defecto, filtrado y barajado
 ├── client/                 Web (React + Vite)
 │   ├── index.html
+│   ├── public/             Iconos (180, 192 y 512 px) y manifest.webmanifest, para instalarla en el móvil
 │   └── src/
 │       ├── main.jsx, App.jsx   Entrada y cambio entre pantallas
 │       ├── api.js              Llamadas al servidor
@@ -256,7 +257,7 @@ En **Vercel es obligatoria**: sin ella la app no funciona, para que nunca quede 
 | `GET /api/historial` | Últimos 50 sorteos con su estado y ganadores |
 | `GET /api/archivo?id=…&tipo=…` | Descarga `orden.json`, `comentarios.csv` o `resultado.json` de un sorteo |
 | `POST /api/historial/borrar` | Borra los archivos de un sorteo (`{ id }`). Da 409 si es el que está en curso |
-| `POST /api/ig/enlace` | Crea un enlace de conexión de Instagram, de un solo uso y válido 24 h |
+| `POST /api/ig/enlace` | Crea un enlace de conexión de Instagram, de un solo uso y válido 24 h. Con `{ directo: true }` (botón *Conectar una cuenta desde este dispositivo*) la página final muestra **Volver a la app** |
 | `GET /api/ig/conectar?e=…` | Quien abre el enlace va a Instagram a dar permiso (pública) |
 | `GET /api/ig/callback` | Instagram vuelve aquí: el código se cambia por un permiso de 60 días y se guarda (pública) |
 | `GET /api/ig/refresh` | Renueva el permiso si le quedan menos de 50 días. La llama Vercel Cron cada día (pública; exige `CRON_SECRET` si existe) |

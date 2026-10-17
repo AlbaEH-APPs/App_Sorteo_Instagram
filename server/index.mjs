@@ -15,7 +15,7 @@ const PORT = Number(process.env.PORT) || 3001;
 const manejar = crearApp({ dirResultados: path.join(ROOT, "resultados") });
 
 // Sirve la web compilada (npm run build) si existe
-const tipos = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon" };
+const tipos = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".webmanifest": "application/manifest+json" };
 function estatico(req, res) {
   if (!fs.existsSync(DIST)) {
     res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
