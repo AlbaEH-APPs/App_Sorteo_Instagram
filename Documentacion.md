@@ -39,8 +39,8 @@ Hay dos modos, y el servidor elige uno solo según si existe la variable `IG_TOK
 
 | Modo | Cuándo | Qué usa |
 |---|---|---|
-| **Demo** | Sin `IG_TOKEN` | 260 comentarios inventados en una publicación de prueba, para ensayar |
-| **Instagram** | Con `IG_TOKEN` | Tu cuenta real y sus últimas 20 publicaciones |
+| **Demo** | Sin cuenta conectada | 45 publicaciones de prueba con 260 comentarios inventados, para ensayar |
+| **Instagram** | Con cuenta conectada (enlace o `IG_TOKEN`) | La cuenta real y todas sus publicaciones |
 
 En la esquina de arriba a la derecha de la web se ve el modo activo: "Modo demo" o `@tu_cuenta`.
 
@@ -93,13 +93,16 @@ Para cambiar el puerto: `$env:PORT="4000"; npm start`
 
 ### Pantalla de preparación
 
-1. **Elige la publicación**: aparecen tus últimas 20.
+1. **Elige la publicación**, de una de estas dos formas:
+   - **Pegando su enlace** en la caja de arriba y pulsando **Buscar**. Vale el enlace de *Compartir → Copiar enlace* de Instagram, de un post o de un reel. La publicación queda elegida y se pone la primera de la lista. Busca entre las 2.000 publicaciones más recientes; si es antigua, tarda unos segundos.
+   - **Eligiéndola de la lista**: salen de 20 en 20, de la más nueva a la más antigua, y al final de la lista está el botón **Cargar más publicaciones**.
+   - Las historias no aparecen, porque no tienen comentarios que se puedan leer.
 2. **Bases del sorteo**:
    - **Ganadores**: de 1 a 50.
    - **Menciones mínimas por comentario**: de 0 a 10 (por defecto 2).
    - **Cierre de participación** (opcional): los comentarios posteriores se descartan.
-   - **Excluir usuarios**: separados por comas, con o sin `@`.
-   - **Contar también las respuestas** a otros comentarios (por defecto no).
+   - Las **respuestas a otros comentarios no cuentan**: solo participan los comentarios principales.
+   - **La cuenta organizadora no puede ganar**: se descarta sola, sin configurar nada.
 3. **Participantes**: se recalcula solo y muestra cuántos comentarios hay, cuántos participantes son válidos y por qué se descarta el resto.
    - Los comentarios se descargan **una vez** al elegir la publicación. Al cambiar las bases solo se vuelven a filtrar, así no se gastan llamadas a la API.
    - Se indica la hora a la que se leyeron. Pulsa **Actualizar** para descargarlos de nuevo.
@@ -108,7 +111,14 @@ Para cambiar el puerto: `$env:PORT="4000"; npm start`
 ### Pantalla del sorteo
 
 1. Pulsa **¡Sortear!**. En ese momento el servidor vuelve a descargar los comentarios, aplica las bases y **baraja y fija el orden** de todos los participantes. El orden se guarda en disco antes de verificar a nadie.
-2. La animación se para en el primero del orden. Comprueba en Instagram si **te sigue** y si **ha dado like** (botones *Ver perfil* y *Ver publicación*).
+2. La animación se para en el primero del orden y aparece **"¿Cumple las bases?"** con los requisitos, que se comprueban **de uno en uno** (pensado para grabar la pantalla):
+   - **Menciona a N amigos**: se marca solo con ✓, porque la app ya lo ha comprobado en su comentario.
+   - **Sigue a @cuenta**: se resalta y pone *Comprobando…*. Pulsa **Ver su perfil**: con la sesión de la cuenta del sorteo, Instagram muestra *"Te sigue"* en su perfil. Después pulsa **✓ Sí** o **✗ No**.
+   - **Ha dado me gusta a la publicación**: igual, con **Ver la publicación**.
+   - Cada respuesta dibuja un ✓ verde o una ✗ roja. Tras el último requisito hay un segundo de pausa antes del veredicto, para que en el vídeo se vean todos marcados.
+   - La pantalla **se desplaza sola** al requisito que se comprueba y después al veredicto.
+   - Seguir la cuenta y dar me gusta **no se pueden comprobar automáticamente**: la API de Instagram no da la lista de seguidores ni quién ha dado me gusta.
+   Debajo del nombre aparece **el comentario con el que participa**: la fecha y hora, el texto con las menciones resaltadas y a cuántas personas distintas menciona.
 3. Si cumple, es ganador. Si no, queda descartado y se pasa al siguiente del orden.
 4. Cuando se completan los ganadores (o se acaban los participantes), se guarda el resultado con **3 suplentes**: los siguientes del orden.
 
@@ -141,7 +151,6 @@ Un comentario se descarta, con su motivo, si:
 |---|---|
 | `sin usuario` | La API no devuelve el usuario |
 | `cuenta organizadora` | Lo ha escrito tu propia cuenta |
-| `usuario excluido` | Está en la lista de excluidos |
 | `fuera de plazo` | Es posterior a la fecha de cierre |
 | `N menciones` | Tiene menos menciones de las exigidas |
 
@@ -191,8 +200,10 @@ App_Sorteo_Instagram/
 │   └── src/
 │       ├── main.jsx, App.jsx   Entrada y cambio entre pantallas
 │       ├── api.js              Llamadas al servidor
+│       ├── marca.js            Nombre, Instagram, logo y colores de la marca
 │       ├── styles.css
 │       └── components/
+│           ├── Logo.jsx        Logo de la marca (archivo original o versión hecha con CSS)
 │           ├── Login.jsx       Pantalla de contraseña
 │           ├── Setup.jsx       Pantalla de preparación
 │           ├── Stage.jsx       Pantalla del sorteo en directo
@@ -229,7 +240,8 @@ En **Vercel es obligatoria**: sin ella la app no funciona, para que nunca quede 
 | `POST /api/login` | Comprueba la contraseña y abre la sesión (pública) |
 | `POST /api/logout` | Cierra la sesión (pública) |
 | `GET /api/status` | Modo (demo/instagram), cuenta conectada y dónde se guardan los datos |
-| `GET /api/posts` | Últimas 20 publicaciones |
+| `GET /api/posts?despues=…` | Publicaciones de 20 en 20; `siguiente` es la marca para pedir la página siguiente (null si no hay más) |
+| `GET /api/posts/buscar?enlace=…` | Busca una publicación por su enlace (`/p/…`, `/reel/…`, `/tv/…`) entre las 2.000 más recientes |
 | `POST /api/preview` | Recuento de participantes con la configuración elegida (usa los comentarios en caché; `refrescar: true` los vuelve a descargar) |
 | `GET /api/draw/current` | Sorteo sin terminar, si lo hay |
 | `POST /api/draw` | Sorteo real: descarga comentarios, fija el orden y guarda `orden.json`, `comentarios.csv` y `en-curso.json`. Da error 409 si hay uno sin terminar |
@@ -254,6 +266,20 @@ Se comprueba en cada petición, así que al conectar o desconectar no hace falta
 El permiso conectado con enlace se guarda **en Upstash Redis** cuando la app corre en Vercel, y en `resultados/.datos/` cuando corre en tu ordenador (carpeta fuera de Git). Los enlaces de conexión se guardan igual, caducan a las 24 h y se borran al usarse. Ver [Guía de lanzamiento, sección 8](Guia_Lanzamiento.md#8-conectar-la-cuenta-de-instagram-con-un-enlace).
 
 Todas las peticiones `POST` deben enviarse como JSON. Así otra web no puede enviarlas con un formulario aprovechando tu sesión.
+
+### Diseño y marca
+
+La app lleva la imagen de **Kalidoskopio by Keka**:
+- **Colores** sacados de su logo: crema, papel blanco roto, topo `#b8a08c` y topo oscuro `#826856` para botones.
+- **Letras:** *Dancing Script*, manuscrita como la del logo, para títulos, y *Nunito* para el resto. Se cargan de Google Fonts.
+- **Logo:** recreado con CSS: la nota de papel rasgada sobre el círculo topo, con el corazón.
+- **Detalles de papelería:** el resultado aparece en una nota de papel con cinta adhesiva y el confeti va en sus tonos. La página "¡Cuenta conectada!" que ve quien conecta su Instagram también lleva la marca.
+
+**Para cambiar la marca:**
+1. `client/src/marca.js`: nombre, firma ("by …"), usuario de Instagram y colores principales.
+2. Las variables del principio de `client/src/styles.css` (`--bg`, `--topo`, `--topo-oscuro`…).
+3. El título y el icono de la pestaña en `client/index.html`.
+4. **Para usar el logo original** en lugar de la versión CSS: guarda la imagen como `client/public/logo.png` (cuadrada, mejor de 512×512 o más) y pon `logo: "/logo.png"` en `marca.js`.
 
 ## 8. Cosas a tener en cuenta
 
@@ -286,10 +312,9 @@ Ideas comentadas que **todavía no están hechas**, de más a menos útil:
 
 | Mejora | Por qué |
 |---|---|
-| Elegir publicaciones más antiguas que las 20 últimas (pegar el enlace del post o "cargar más") | Si el sorteo es de un post antiguo, ahora no se puede seleccionar |
 | Botón para borrar sorteos del Historial | Para quitar los de prueba |
 | Modo demo más realista (miles de comentarios, retrasos y errores simulados) | Para ensayar la caché, los reintentos y la reanudación sin token |
-| Tests automáticos de `server/sorteo.mjs` (con `node:test`, sin instalar nada) | Verificar las reglas (menciones, plazo, excluidos, una participación por persona) antes de un sorteo real |
+| Tests automáticos de `server/sorteo.mjs` (con `node:test`, sin instalar nada) | Verificar las reglas (menciones, plazo, cuenta organizadora, una participación por persona) antes de un sorteo real |
 | No contar correos como menciones (`ana@gmail.com` cuenta `@gmail.com` como mención) | Hoy un comentario con un correo puede sumar una mención de más |
 | En local, aceptar conexiones solo desde el propio ordenador (`127.0.0.1`) | Ahora cualquier dispositivo de la misma wifi puede abrir la app local si no tiene contraseña |
 | Avisar en la app cuando el permiso de Instagram está a punto de caducar sin poder renovarse | Hoy se ve en la pantalla Instagram, pero no hay aviso activo |

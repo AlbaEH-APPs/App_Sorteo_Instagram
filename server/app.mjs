@@ -1,10 +1,11 @@
 // API del sorteo: habla con Instagram, hace el sorteo y guarda los resultados.
 // La usan igual el servidor local (server/index.mjs) y Vercel (api/index.mjs).
 import crypto from "node:crypto";
-import { createInstagram, urlAutorizacion, obtenerToken, renovarToken } from "./instagram.mjs";
+import { createInstagram, urlAutorizacion, obtenerToken, renovarToken, codigoDeEnlace } from "./instagram.mjs";
 import { createDemo } from "./demo.mjs";
 import { filtrar, barajar, normalizarConfig } from "./sorteo.mjs";
 import { crearAlmacen, TIPOS } from "./almacen.mjs";
+import { MARCA } from "../client/src/marca.js";
 
 const error = (msg, status) => Object.assign(new Error(msg), { status });
 const EN_VERCEL = Boolean(process.env.VERCEL);
@@ -24,15 +25,21 @@ const redireccion = (url) => new Respuesta(302, { Location: url });
 
 const escapar = (t) => String(t).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
-// Página sencilla para quien abre el enlace de conexión (no tiene la app abierta)
+// Página sencilla para quien abre el enlace de conexión (no tiene la app abierta), con la marca
 function pagina(titulo, texto, ok) {
+  const marca = `${MARCA.nombre} by ${MARCA.firma}`;
+  const c = MARCA.colores;
   const html = `<!doctype html><html lang="es"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapar(titulo)}</title>
-<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0e0b16;color:#f6f1ff;
-font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:16px;box-sizing:border-box}
-main{max-width:420px;text-align:center;background:#1b1529;border:1px solid #2d2540;border-radius:18px;padding:28px 22px}
-.i{font-size:52px}h1{font-size:22px;margin:10px 0}p{color:#a69cbd;line-height:1.5;margin:0}</style></head>
-<body><main><div class="i">${ok ? "✅" : "⚠️"}</div><h1>${escapar(titulo)}</h1><p>${escapar(texto)}</p></main></body></html>`;
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapar(titulo)} · ${escapar(marca)}</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Nunito:wght@400;800&display=swap">
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:${c.fondo};color:${c.texto};
+font-family:Nunito,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:16px;box-sizing:border-box}
+main{position:relative;max-width:420px;text-align:center;background:${c.papel};border:1px solid #e4d8ca;border-radius:6px;
+padding:34px 22px 26px;box-shadow:0 10px 28px -14px rgba(90,66,44,.3)}
+main:before{content:"";position:absolute;top:-12px;left:50%;width:110px;height:24px;transform:translateX(-50%) rotate(-3deg);background:rgba(217,202,187,.75)}
+.m{font-family:"Dancing Script",cursive;font-size:28px;color:${c.topoOscuro};margin:0 0 6px}
+.i{width:56px;height:56px;margin:4px auto 0;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:28px;font-weight:800}.ok{background:#b8a08c}.ko{background:#a94f44}h1{font-size:22px;margin:8px 0 10px;font-weight:800}p{color:#7a6c60;line-height:1.5;margin:0}</style></head>
+<body><main><p class="m">${escapar(marca)}</p><div class="i ${ok ? "ok" : "ko"}">${ok ? "♥" : "!"}</div><h1>${escapar(titulo)}</h1><p>${escapar(texto)}</p></main></body></html>`;
   return new Respuesta(ok ? 200 : 400, { "Content-Type": "text/html; charset=utf-8" }, html);
 }
 
@@ -284,7 +291,17 @@ export function crearApp({ dirResultados }) {
       };
     },
 
-    "GET /api/posts": async () => ({ posts: await (await cliente()).ig.posts() }),
+    // Publicaciones de 20 en 20; ?despues=… pide la página siguiente
+    "GET /api/posts": async ({ query }) => (await cliente()).ig.posts(query.get("despues") || undefined),
+
+    // Una publicación a partir de su enlace (https://www.instagram.com/p/…/ o /reel/…/)
+    "GET /api/posts/buscar": async ({ query }) => {
+      const codigo = codigoDeEnlace(query.get("enlace"));
+      if (!codigo) throw error("Ese enlace no parece de una publicación de Instagram", 400);
+      const post = await (await cliente()).ig.buscarPost(codigo);
+      if (!post) throw error("No se ha encontrado esa publicación en la cuenta conectada", 404);
+      return { post };
+    },
 
     // Vista previa: cuántos participan con la configuración elegida
     "POST /api/preview": async ({ body }) => {
@@ -334,6 +351,7 @@ export function crearApp({ dirResultados }) {
         fechaSorteo: datos.fechaSorteo,
         post: { id: body.postId, permalink: post.permalink, caption: post.caption },
         ganadores: cfg.ganadores,
+        minimoMenciones: cfg.minimoMenciones,
         totalComentarios: comentarios.length,
         orden: orden.map((x) => ({ username: x.username, text: x.text, timestamp: x.timestamp })),
       };

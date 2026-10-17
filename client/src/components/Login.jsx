@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "../api.js";
+import Logo from "./Logo.jsx";
 
 export default function Login({ onLogin }) {
   const [password, setPassword] = useState("");
@@ -19,8 +20,9 @@ export default function Login({ onLogin }) {
 
   return (
     <main className="login">
+      <Logo grande />
+      <h1 className="login__titulo">Sorteos en directo</h1>
       <form className="panel login__form" onSubmit={entrar}>
-        <h2 className="panel__title">Entrar</h2>
         <label className="field">
           <span>Contraseña</span>
           <input

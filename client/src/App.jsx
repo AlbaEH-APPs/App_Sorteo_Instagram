@@ -5,13 +5,13 @@ import Stage from "./components/Stage.jsx";
 import Login from "./components/Login.jsx";
 import Historial from "./components/Historial.jsx";
 import Instagram from "./components/Instagram.jsx";
+import Logo from "./components/Logo.jsx";
+import { MARCA } from "./marca.js";
 
 const CONFIG_INICIAL = {
   ganadores: 1,
   minimoMenciones: 2,
-  incluirRespuestas: false,
   fechaCierre: "",
-  excluirUsuarios: "",
 };
 
 export default function App() {
@@ -79,8 +79,11 @@ export default function App() {
     <div className={`app ${vista === "stage" ? "app--stage" : ""}`}>
       <header className="topbar">
         <div className="brand">
-          <span className="brand__mark" aria-hidden>✦</span>
-          <span>Sorteo en directo</span>
+          <Logo />
+          <div className="brand__texto">
+            <span className="brand__nombre">{MARCA.nombre}</span>
+            <span className="brand__firma">by {MARCA.firma} · sorteos</span>
+          </div>
         </div>
         <div className="topbar__right">
           {status && (
@@ -168,6 +171,7 @@ export default function App() {
       {sesion?.autenticado && vista === "stage" && (reanudando || post) && (
         <Stage
           sorteoInicial={reanudando}
+          cuenta={status?.cuenta}
           post={reanudando ? reanudando.post : post}
           config={configParaServidor}
           pool={preview?.nombres || []}

@@ -54,7 +54,7 @@ Hay que repetirlo solo si cambias de ordenador o si cambia `package.json`.
 
 ## 2. Modo prueba (sin token)
 
-Usa 260 comentarios inventados en una publicación de prueba. Sirve para ensayar el directo y para enseñar la app sin tocar la cuenta real.
+Usa 45 publicaciones de prueba con 260 comentarios inventados (la primera es la del "sorteo"). Sirve para ensayar el directo y para enseñar la app sin tocar la cuenta real.
 
 ### 2.1 Arrancar
 
@@ -184,7 +184,7 @@ Si la cuenta de Instagram es de otra persona (por ejemplo, de un cliente), no po
    - Comprueba que el recuento de participantes es razonable.
    - Elegir publicación y cambiar bases **no sortea nada**, así que esto se puede hacer sin miedo.
 3. Opcional: haz un sorteo de prueba completo sobre **otra** publicación y termínalo o ciérralo con **Cerrar sin terminar**. Después borra sus archivos de `resultados/` para no confundirlos con el real.
-4. Ten escritas **las bases definitivas**: nº de ganadores, menciones mínimas, fecha y hora de cierre y cuentas excluidas.
+4. Ten escritas **las bases definitivas**: nº de ganadores, menciones mínimas y fecha y hora de cierre.
 
 ### 4.2 Arrancar con el token
 
@@ -217,7 +217,7 @@ npm start
 **Antes de empezar:**
 
 1. Arranca la app como en 4.2 y comprueba lo de 4.3.
-2. Elige la publicación del sorteo y pon las bases.
+2. Elige la publicación del sorteo y pon las bases. Lo más rápido: en Instagram, en el post, *Compartir → Copiar enlace*, y pégalo en la caja **Pega el enlace del post** → **Buscar**.
 3. Pulsa **Actualizar** para ver el recuento con los últimos comentarios.
 4. Ten Instagram abierto en otra pestaña o en el móvil, con la sesión de la cuenta del sorteo, para verificar a los candidatos.
 5. Cierra otras ventanas y notificaciones que no quieras que salgan en pantalla.
@@ -226,7 +226,7 @@ npm start
 
 1. Pulsa **Ir a la pantalla del sorteo** y después **Pantalla completa**.
 2. Pulsa **¡Sortear!** o la barra espaciadora. En ese momento se leen los comentarios y se fija el orden.
-3. Con cada candidato, comprueba en Instagram si **te sigue** y si **ha dado like** (botones *Ver perfil* y *Ver publicación*) y responde Sí / No.
+3. Con cada candidato aparece **"¿Cumple las bases?"**. Las menciones se marcan solas. Para **"Sigue a @cuenta"** pulsa **Ver su perfil** (Instagram muestra *"Te sigue"* si la sigue) y responde **✓ Sí** o **✗ No**. Para **"Ha dado me gusta"** pulsa **Ver la publicación** y responde igual. Cada respuesta se marca con un ✓ o una ✗ animados y la pantalla baja sola hasta el veredicto, así que en la grabación se ve todo sin tocar nada más.
 4. Repite hasta tener todos los ganadores.
 
 **Si algo se corta** (se cierra el navegador, se recarga la página o se para el servidor):
@@ -271,7 +271,9 @@ Se muestra el **token nuevo** y su fecha de caducidad. Guárdalo en lugar del an
 | `Instagram: ... (código 10)` o `(código 200)` | Faltan permisos | Revisa el paso 3.4 y genera el token otra vez |
 | `Instagram: ... (código 4)`, `(código 17)` o `(código 32)` | Demasiadas llamadas a Instagram en poco tiempo | Espera unos minutos sin pulsar *Actualizar* |
 | `Instagram no responde` | Sin internet, o Instagram falla en ese momento (ya se reintentó 2 veces) | Comprueba la conexión y vuelve a intentarlo |
-| No aparece la publicación del sorteo | Solo se muestran las **20 últimas** publicaciones | Si es más antigua, avísame para añadir que se pueda elegir |
+| No aparece la publicación del sorteo | La lista muestra las publicaciones de 20 en 20 | Pulsa **Cargar más publicaciones** al final de la lista, o pega su enlace en **Pega el enlace del post** → **Buscar** |
+| "No se ha encontrado esa publicación en la cuenta conectada" | El enlace es de otra cuenta, o la cuenta conectada no es la del sorteo | Comprueba arriba a la derecha qué cuenta está conectada y que el post es de esa cuenta |
+| "Ese enlace no parece de una publicación de Instagram" | Has pegado el enlace de un perfil u otra cosa | Copia el enlace desde el propio post: *Compartir → Copiar enlace* |
 | `Abre la web con 'npm run dev'… o compílala con 'npm run build'` | Falta preparar la web | Ejecuta `npm run build` y luego `npm start` |
 | `No se pudo conectar con el servidor` | El servidor no está arrancado | Arráncalo (`npm start`) y recarga la página |
 | `Error: listen EADDRINUSE ... 3001` en la terminal | Ya hay otro servidor de la app abierto | Ciérralo (`Ctrl + C` en su terminal) o arranca en otro puerto: `$env:PORT="3002"; npm start` y abre http://localhost:3002 |
@@ -401,7 +403,8 @@ Al iniciar sesión, la sesión dura **12 horas**. Pasado ese tiempo, la app vuel
 Igual que la sección 4.4, con estas diferencias:
 
 - No hay que arrancar nada: abre la dirección y entra con la contraseña **antes** de empezar el directo.
-- Para verificar a cada candidato, **Ver perfil** y **Ver publicación** abren Instagram en otra pestaña (o en la app de Instagram). Vuelve al navegador para responder Sí / No. Si el navegador recargara la página, pulsa **Continuar sorteo**.
+- Para verificar a cada candidato, **Ver su perfil** y **Ver la publicación** abren Instagram en otra pestaña (o en la app de Instagram). Vuelve al navegador para responder **✓ Sí** / **✗ No**. Si el navegador recargara la página, pulsa **Continuar sorteo**.
+- **Si grabas la pantalla del móvil**, la grabación recoge también lo que ves en Instagram (el *"Te sigue"* de su perfil, el corazón de la publicación). Así queda como prueba de cada comprobación. Antes de empezar, cierra las notificaciones (modo *No molestar*) para que no salgan en el vídeo.
 - **Pantalla completa** no aparece en iPhone porque Safari no lo permite. Con "Añadir a pantalla de inicio" se ve casi igual.
 - Los resultados se descargan desde **Historial**. Descárgalos después del directo y guárdalos en un lugar seguro.
 

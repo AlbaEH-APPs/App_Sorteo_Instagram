@@ -29,24 +29,29 @@ export function createDemo() {
     });
   }
 
-  const posts = [
-    {
-      id: "demo-post-1",
-      caption: "🎁 SORTEO (demo) · Sígueme, dale like y menciona a dos amigos",
-      permalink: "https://www.instagram.com/",
-      timestamp: new Date().toISOString(),
-      comments: comments.length,
-      likes: 412,
-      image: null,
-    },
-  ];
+  // 45 publicaciones (la primera es la del sorteo) para poder probar "Cargar más" y la búsqueda por enlace.
+  // Todas devuelven los mismos comentarios inventados.
+  const posts = Array.from({ length: 45 }, (_, i) => ({
+    id: `demo-post-${i + 1}`,
+    caption: i === 0 ? "🎁 SORTEO (demo) · Sígueme, dale like y menciona a dos amigos" : `Publicación de prueba nº ${i + 1}`,
+    permalink: `https://www.instagram.com/p/DEMO${i + 1}/`,
+    timestamp: new Date(Date.now() - i * 3 * 86400000).toISOString(),
+    comments: comments.length,
+    likes: 412 - i * 7,
+    image: null,
+  }));
 
   return {
     async me() {
       return { username: "tu_cuenta_demo" };
     },
-    async posts() {
-      return posts;
+    async posts(despues) {
+      const desde = Number(despues) || 0;
+      const siguiente = desde + 20 < posts.length ? String(desde + 20) : null;
+      return { posts: posts.slice(desde, desde + 20), siguiente };
+    },
+    async buscarPost(codigo) {
+      return posts.find((p) => p.permalink.includes(`/p/${codigo}/`)) || null;
     },
     async post(id) {
       return posts.find((p) => p.id === id) || posts[0];

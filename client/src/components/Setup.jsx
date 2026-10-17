@@ -21,12 +21,52 @@ export default function Setup({
   onStart,
 }) {
   const [posts, setPosts] = useState(null);
+  const [siguiente, setSiguiente] = useState(null); // marca de la página siguiente, o null si no hay más
+  const [cargandoMas, setCargandoMas] = useState(false);
+  const [enlace, setEnlace] = useState("");
+  const [buscando, setBuscando] = useState(false);
+  const [errorPosts, setErrorPosts] = useState("");
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    api.posts().then((d) => setPosts(d.posts)).catch((e) => setError(e.message));
+    api
+      .posts()
+      .then((d) => {
+        setPosts(d.posts);
+        setSiguiente(d.siguiente);
+      })
+      .catch((e) => setErrorPosts(e.message));
   }, []);
+
+  const cargarMas = () => {
+    setCargandoMas(true);
+    setErrorPosts("");
+    api
+      .posts(siguiente)
+      .then((d) => {
+        setPosts((actuales) => [...actuales, ...d.posts.filter((p) => !actuales.some((a) => a.id === p.id))]);
+        setSiguiente(d.siguiente);
+      })
+      .catch((e) => setErrorPosts(e.message))
+      .finally(() => setCargandoMas(false));
+  };
+
+  // Busca la publicación del enlace, la pone la primera de la lista y la deja elegida
+  const buscar = (e) => {
+    e.preventDefault();
+    setBuscando(true);
+    setErrorPosts("");
+    api
+      .buscarPost(enlace)
+      .then(({ post: p }) => {
+        setPosts((actuales) => [p, ...(actuales || []).filter((a) => a.id !== p.id)]);
+        setPost(p);
+        setEnlace("");
+      })
+      .catch((e) => setErrorPosts(e.message))
+      .finally(() => setBuscando(false));
+  };
 
   // El servidor guarda los comentarios descargados: recalcular solo vuelve a filtrar,
   // salvo con "Actualizar", que los descarga de nuevo
@@ -57,7 +97,24 @@ export default function Setup({
     <main className="setup">
       <section className="panel">
         <h2 className="panel__title"><span>1</span> Elige la publicación</h2>
-        {!posts && !error && <p className="muted">Cargando publicaciones…</p>}
+        <form className="buscar" onSubmit={buscar}>
+          <input
+            className="enlace"
+            type="url"
+            inputMode="url"
+            placeholder="Pega el enlace del post"
+            aria-label="Enlace de la publicación"
+            value={enlace}
+            onChange={(e) => setEnlace(e.target.value)}
+          />
+          <button className="btn btn--small" disabled={!enlace.trim() || buscando}>
+            {buscando ? "Buscando…" : "Buscar"}
+          </button>
+        </form>
+        {buscando && <p className="hint">Si la publicación es antigua, puede tardar unos segundos.</p>}
+        {errorPosts && <div className="alert">{errorPosts}</div>}
+        <p className="hint buscar__o">o elígela de la lista</p>
+        {!posts && !errorPosts && <p className="muted">Cargando publicaciones…</p>}
         <div className="posts">
           {posts?.map((p) => (
             <button
@@ -76,6 +133,11 @@ export default function Setup({
               </div>
             </button>
           ))}
+          {siguiente && (
+            <button className="btn btn--small" onClick={cargarMas} disabled={cargandoMas}>
+              {cargandoMas ? "Cargando…" : "Cargar más publicaciones"}
+            </button>
+          )}
         </div>
       </section>
 
@@ -93,14 +155,6 @@ export default function Setup({
           <label className="field">
             <span>Cierre de participación <em>(opcional)</em></span>
             <input type="datetime-local" value={config.fechaCierre} onChange={set("fechaCierre")} />
-          </label>
-          <label className="field">
-            <span>Excluir usuarios <em>(separados por comas)</em></span>
-            <input type="text" placeholder="@amiga, @mi_otra_cuenta" value={config.excluirUsuarios} onChange={set("excluirUsuarios")} />
-          </label>
-          <label className="check">
-            <input type="checkbox" checked={config.incluirRespuestas} onChange={set("incluirRespuestas")} />
-            <span>Contar también las respuestas a otros comentarios</span>
           </label>
           <p className="hint">
             Seguir la cuenta y dar like se comprueban a mano, solo con quien salga elegido.

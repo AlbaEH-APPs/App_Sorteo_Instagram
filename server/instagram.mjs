@@ -58,32 +58,56 @@ async function allPages(first) {
   return items;
 }
 
+const CAMPOS_POST = "id,caption,permalink,timestamp,comments_count,like_count,media_type,media_url,thumbnail_url";
+
+const aPost = (m) => ({
+  id: m.id,
+  caption: m.caption || "",
+  permalink: m.permalink,
+  timestamp: m.timestamp,
+  comments: m.comments_count ?? null,
+  likes: m.like_count ?? null,
+  image: m.media_type === "VIDEO" ? m.thumbnail_url : m.media_url,
+});
+
+// Código de una publicación a partir de su enlace o del código suelto:
+// https://www.instagram.com/p/ABC123/, /reel/ABC123/, /usuario/p/ABC123/?img_index=1 o "ABC123"
+export function codigoDeEnlace(texto) {
+  const t = String(texto || "").trim();
+  const m = t.match(/instagram\.com\/(?:[\w.]+\/)?(?:p|reel|reels|tv)\/([\w-]+)/i);
+  if (m) return m[1];
+  return /^[\w-]{5,}$/.test(t) ? t : null;
+}
+
 export function createInstagram(token) {
   return {
     async me() {
       return get(url("/me", { fields: "username,profile_picture_url" }, token));
     },
 
-    async posts() {
-      const data = await get(
-        url(
-          "/me/media",
-          {
-            fields: "id,caption,permalink,timestamp,comments_count,like_count,media_type,media_url,thumbnail_url",
-            limit: "20",
-          },
-          token
-        )
-      );
-      return data.data.map((m) => ({
-        id: m.id,
-        caption: m.caption || "",
-        permalink: m.permalink,
-        timestamp: m.timestamp,
-        comments: m.comments_count ?? null,
-        likes: m.like_count ?? null,
-        image: m.media_type === "VIDEO" ? m.thumbnail_url : m.media_url,
-      }));
+    // Publicaciones de 20 en 20, de la más nueva a la más antigua. "despues" es la marca de la página
+    // siguiente que devuelve Instagram; "siguiente" es null cuando ya no hay más.
+    async posts(despues) {
+      const params = { fields: CAMPOS_POST, limit: "20" };
+      if (despues) params.after = despues;
+      const data = await get(url("/me/media", params, token));
+      return {
+        posts: data.data.map(aPost),
+        siguiente: data.paging?.next ? data.paging.cursors?.after || null : null,
+      };
+    },
+
+    // Busca una publicación por su enlace recorriendo la lista (Instagram no deja abrirla por enlace).
+    // Como mucho mira las 2.000 más recientes.
+    async buscarPost(codigo) {
+      let next = url("/me/media", { fields: CAMPOS_POST, limit: "50" }, token);
+      for (let pagina = 0; next && pagina < 40; pagina++) {
+        const data = await get(next);
+        const m = data.data.find((x) => codigoDeEnlace(x.permalink) === codigo);
+        if (m) return aPost(m);
+        next = data.paging?.next || null;
+      }
+      return null;
     },
 
     async post(id) {

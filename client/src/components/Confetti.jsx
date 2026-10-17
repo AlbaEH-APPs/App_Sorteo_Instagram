@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 
-const COLORES = ["#ffb547", "#ff5e7e", "#b46bff", "#5ee0c2", "#ffffff"];
+// Tonos de la marca: topo, papel, rosa empolvado y un verde salvia suave
+const COLORES = ["#b8a08c", "#826856", "#d9cabb", "#e8c9c1", "#c99a8e", "#a9b9a0", "#f3e3d3"];
 
 export default function Confetti({ fireId }) {
   const ref = useRef(null);
