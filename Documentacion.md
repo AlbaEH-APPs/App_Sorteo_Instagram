@@ -182,6 +182,11 @@ En los dos casos se pueden ver y descargar desde el botón **Historial** de la a
 
 Sirven como **prueba de transparencia** del sorteo si alguien la pide.
 
+**Borrar sorteos:** en **Historial**, cada sorteo terminado o cancelado tiene un botón **Borrar**, que pide confirmación.
+- Si el sorteo es **real** (no de demo), el aviso es más serio: sus archivos son la prueba del sorteo, así que conviene descargarlos antes.
+- Se borran sus tres archivos y no se puede deshacer.
+- El sorteo **en curso** no se puede borrar: primero hay que terminarlo o cerrarlo.
+
 > La carpeta `resultados/` está en `.gitignore`: contiene nombres de usuarios reales y **no se sube a GitHub**. Si quieres conservarla, haz copia aparte.
 
 ## 7. Estructura del proyecto
@@ -250,6 +255,7 @@ En **Vercel es obligatoria**: sin ella la app no funciona, para que nunca quede 
 | `POST /api/draw/cancel` | Guarda `resultado.json` como `cancelado` |
 | `GET /api/historial` | Últimos 50 sorteos con su estado y ganadores |
 | `GET /api/archivo?id=…&tipo=…` | Descarga `orden.json`, `comentarios.csv` o `resultado.json` de un sorteo |
+| `POST /api/historial/borrar` | Borra los archivos de un sorteo (`{ id }`). Da 409 si es el que está en curso |
 | `POST /api/ig/enlace` | Crea un enlace de conexión de Instagram, de un solo uso y válido 24 h |
 | `GET /api/ig/conectar?e=…` | Quien abre el enlace va a Instagram a dar permiso (pública) |
 | `GET /api/ig/callback` | Instagram vuelve aquí: el código se cambia por un permiso de 60 días y se guarda (pública) |
@@ -262,6 +268,14 @@ En **Vercel es obligatoria**: sin ella la app no funciona, para que nunca quede 
 3. El modo demo.
 
 Se comprueba en cada petición, así que al conectar o desconectar no hace falta volver a publicar.
+
+**Avisos del permiso de Instagram.** La app intenta renovar el permiso cuando le quedan menos de 50 días.
+- **Si la renovación falla**, guarda el motivo y no vuelve a intentarlo hasta pasadas 6 horas, para no insistir a Instagram en cada petición.
+- **En la pantalla principal** aparece un aviso con el botón **Conectar de nuevo** en tres casos:
+  - el permiso caduca en **10 días o menos** sin haberse podido renovar,
+  - **ya ha caducado** (entonces la app pasa a modo demo),
+  - o **Instagram no deja leer la cuenta**, por ejemplo porque se ha retirado el permiso.
+- El motivo técnico del fallo se ve en la pantalla **Instagram**.
 
 El permiso conectado con enlace se guarda **en Upstash Redis** cuando la app corre en Vercel, y en `resultados/.datos/` cuando corre en tu ordenador (carpeta fuera de Git). Los enlaces de conexión se guardan igual, caducan a las 24 h y se borran al usarse. Ver [Guía de lanzamiento, sección 8](Guia_Lanzamiento.md#8-conectar-la-cuenta-de-instagram-con-un-enlace).
 
@@ -312,9 +326,7 @@ Ideas comentadas que **todavía no están hechas**, de más a menos útil:
 
 | Mejora | Por qué |
 |---|---|
-| Botón para borrar sorteos del Historial | Para quitar los de prueba |
 | Modo demo más realista (miles de comentarios, retrasos y errores simulados) | Para ensayar la caché, los reintentos y la reanudación sin token |
 | Tests automáticos de `server/sorteo.mjs` (con `node:test`, sin instalar nada) | Verificar las reglas (menciones, plazo, cuenta organizadora, una participación por persona) antes de un sorteo real |
 | No contar correos como menciones (`ana@gmail.com` cuenta `@gmail.com` como mención) | Hoy un comentario con un correo puede sumar una mención de más |
 | En local, aceptar conexiones solo desde el propio ordenador (`127.0.0.1`) | Ahora cualquier dispositivo de la misma wifi puede abrir la app local si no tiene contraseña |
-| Avisar en la app cuando el permiso de Instagram está a punto de caducar sin poder renovarse | Hoy se ve en la pantalla Instagram, pero no hay aviso activo |

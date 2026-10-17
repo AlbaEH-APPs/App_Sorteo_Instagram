@@ -7,6 +7,7 @@ import Historial from "./components/Historial.jsx";
 import Instagram from "./components/Instagram.jsx";
 import Logo from "./components/Logo.jsx";
 import { MARCA } from "./marca.js";
+import { confirmar } from "./components/Confirmar.jsx";
 
 const CONFIG_INICIAL = {
   ganadores: 1,
@@ -54,6 +55,26 @@ export default function App() {
       .catch((e) => setError(e.message));
   }, []);
 
+  // Aviso si la cuenta de Instagram conectada con enlace ha caducado, va a caducar sin haberse podido
+  // renovar (la app lo intenta cuando quedan menos de 50 días; con 10 o menos es que lleva tiempo fallando)
+  // o Instagram ha retirado el permiso
+  const avisoInstagram = (() => {
+    const ig = status?.instagram;
+    const c = ig?.conectada;
+    if (!ig) return null;
+    if (c?.caducada && ig.origen !== "variable") {
+      return `El permiso de Instagram de @${c.usuario} ha caducado. La app está en modo demo hasta que vuelvas a conectar la cuenta.`;
+    }
+    if (ig.error && status.modo === "instagram") {
+      return "Instagram no deja leer la cuenta: puede que se haya retirado el permiso. Conecta la cuenta de nuevo.";
+    }
+    if (c && !c.caducada && c.diasRestantes <= 10) {
+      const cuando = c.diasRestantes === 0 ? "hoy" : c.diasRestantes === 1 ? "mañana" : `en ${c.diasRestantes} días`;
+      return `El permiso de Instagram de @${c.usuario} caduca ${cuando} y no se ha podido renovar solo. Conecta la cuenta de nuevo para no perderlo.`;
+    }
+    return null;
+  })();
+
   const salir = () => {
     api.logout().finally(() => {
       setSesion((s) => ({ ...s, autenticado: false }));
@@ -61,8 +82,14 @@ export default function App() {
     });
   };
 
-  const cerrarPendiente = () => {
-    if (!confirm("El sorteo quedará guardado como cancelado y no se podrá continuar. ¿Cerrarlo?")) return;
+  const cerrarPendiente = async () => {
+    const ok = await confirmar({
+      titulo: "¿Cerrar el sorteo sin terminar?",
+      texto: "Quedará guardado como cancelado, con lo que se haya revisado hasta ahora, y ya no se podrá continuar.",
+      aceptar: "Sí, cerrar",
+      peligro: true,
+    });
+    if (!ok) return;
     api
       .cancel(pendiente.id)
       .then(() => setPendiente(null))
@@ -127,6 +154,15 @@ export default function App() {
             api.status().then(setStatus).catch((e) => setError(e.message));
           }}
         />
+      )}
+
+      {sesion?.autenticado && status && vista === "setup" && avisoInstagram && (
+        <div className="aviso">
+          <p>{avisoInstagram}</p>
+          <button className="btn btn--primary btn--small" onClick={() => setVista("instagram")}>
+            Conectar de nuevo
+          </button>
+        </div>
       )}
 
       {sesion?.autenticado && status && vista === "setup" && pendiente && (

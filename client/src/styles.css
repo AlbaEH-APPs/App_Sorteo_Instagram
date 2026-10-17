@@ -352,3 +352,46 @@ a.btn { display: inline-block; text-decoration: none; }
   .pendiente__btns .btn { flex: 1; }
   .stage__foot { opacity: 1; }
 }
+
+/* ── borrar del historial ─────────────────────────── */
+.btn--borrar { margin-left: auto; background: transparent; border-color: #e6c3bc; color: var(--bad); }
+.btn--borrar:hover:not(:disabled) { background: #f9ece9; }
+
+/* ── aviso del permiso de Instagram ─────────────────────────── */
+.aviso {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px 16px; flex-wrap: wrap;
+  margin-bottom: 18px; padding: 14px 18px; border-radius: var(--radius);
+  background: #fbf3e6; border: 1px solid #e3cfae; color: #6b4a1c;
+}
+.aviso p { margin: 0; flex: 1 1 320px; line-height: 1.5; }
+
+/* ── ventana de confirmación ─────────────────────────── */
+.dialogo__fondo {
+  position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 16px;
+  background: rgba(62, 57, 53, 0.42); backdrop-filter: blur(2px); animation: aparece 0.18s ease-out;
+}
+.dialogo {
+  position: relative; width: min(420px, 100%); text-align: center;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  padding: 34px 24px 22px; box-shadow: 0 24px 60px -20px rgba(62, 45, 30, 0.55);
+  animation: sube 0.22s cubic-bezier(0.2, 1.2, 0.4, 1);
+}
+.dialogo::before {
+  content: ""; position: absolute; top: -12px; left: 50%; width: 110px; height: 24px;
+  transform: translateX(-50%) rotate(-3deg); background: rgba(217, 202, 187, 0.85);
+  border-left: 2px dotted rgba(255, 255, 255, 0.6); border-right: 2px dotted rgba(255, 255, 255, 0.6);
+}
+.dialogo__icono {
+  width: 52px; height: 52px; margin: 0 auto 10px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--topo); color: #fff; font-size: 26px; font-weight: 800;
+}
+.dialogo__icono--peligro { background: var(--bad); }
+.dialogo__titulo { margin: 0 0 8px; font-size: 20px; font-weight: 800; line-height: 1.25; }
+.dialogo__texto p { margin: 0 0 8px; color: var(--muted); font-size: 15px; line-height: 1.5; }
+.dialogo__botones { display: flex; gap: 10px; margin-top: 18px; }
+.dialogo__botones .btn { flex: 1; padding: 12px; }
+.btn--peligro { background: var(--bad); border-color: var(--bad); color: #fff; }
+.btn--peligro:hover:not(:disabled) { background: #943f35; }
+@keyframes aparece { from { opacity: 0; } }
+@keyframes sube { from { opacity: 0; transform: translateY(14px) scale(0.97); } }
+@media (prefers-reduced-motion: reduce) { .dialogo__fondo, .dialogo { animation: none; } }

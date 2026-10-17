@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
+import { confirmar } from "./Confirmar.jsx";
 
 const NOMBRES = { "orden.json": "Orden", "comentarios.csv": "Comentarios (CSV)", "resultado.json": "Resultado" };
 
@@ -17,6 +18,28 @@ export default function Historial({ onVolver }) {
       .then((d) => setSorteos(d.sorteos))
       .catch((e) => setError(e.message));
   }, []);
+
+  // Los sorteos reales piden una confirmación más clara: sus archivos son la prueba del sorteo
+  const borrar = async (s) => {
+    const real = s.modo !== "demo";
+    const ok = await confirmar({
+      titulo: real ? "¿Borrar este sorteo real?" : "¿Borrar este sorteo de prueba?",
+      texto: real
+        ? [
+            `Sorteo del ${fecha(s.fecha)}. Sus archivos son la prueba de cómo se eligió al ganador.`,
+            "Si quieres conservarlos, descárgalos antes. Esto no se puede deshacer.",
+          ]
+        : `Sorteo del ${fecha(s.fecha)}. Se borrarán sus archivos.`,
+      aceptar: "Sí, borrar",
+      peligro: true,
+    });
+    if (!ok) return;
+    setError("");
+    api
+      .borrarSorteo(s.id)
+      .then(() => setSorteos((lista) => lista.filter((x) => x.id !== s.id)))
+      .catch((e) => setError(e.message));
+  };
 
   return (
     <main className="historial">
@@ -49,7 +72,13 @@ export default function Historial({ onVolver }) {
                 ⬇ {NOMBRES[t]}
               </a>
             ))}
+            {s.estado !== "en curso" && (
+              <button className="btn btn--small btn--borrar" onClick={() => borrar(s)}>
+                Borrar
+              </button>
+            )}
           </div>
+          {s.estado === "en curso" && <p className="hint">Para borrarlo, primero termínalo o ciérralo.</p>}
         </section>
       ))}
     </main>

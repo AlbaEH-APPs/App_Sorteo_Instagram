@@ -33,6 +33,7 @@ export const api = {
   finish: (payload) => request("POST", "/api/draw/finish", payload),
   cancel: (id) => request("POST", "/api/draw/cancel", { id }),
   historial: () => request("GET", "/api/historial"),
+  borrarSorteo: (id) => request("POST", "/api/historial/borrar", { id }),
   archivoUrl: (id, tipo) => `/api/archivo?id=${encodeURIComponent(id)}&tipo=${encodeURIComponent(tipo)}`,
 };
 

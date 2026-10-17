@@ -580,4 +580,5 @@ Ten en cuenta:
 | Tu amiga ve "No se ha conectado" | Pulsó cancelar en Instagram: crea uno nuevo |
 | Tu amiga ve "No se ha podido conectar" y un mensaje de Instagram | Mándame ese mensaje. Suele ser la clave secreta mal copiada (paso 8.3) |
 | En la app: "El permiso de @… caducó" | Crea un enlace nuevo y repetid los pasos 8.4 y 8.5 |
+| Aviso en la pantalla principal: "El permiso de Instagram de @… caduca en N días y no se ha podido renovar solo" | Pulsa **Conectar de nuevo**, crea un enlace y repetid los pasos 8.4 y 8.5. El motivo del fallo se ve en la pantalla Instagram |
 | En la app: "Instagram: … (código 190)" | Ella ha quitado el permiso o ha cambiado la contraseña: crea un enlace nuevo |

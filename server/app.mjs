@@ -149,20 +149,26 @@ export function crearApp({ dirResultados }) {
 
   // Pide otros 60 días a Instagram cuando al token le quedan menos de 50
   // (ocurre al usar la app o, si no se usa, en la comprobación diaria de Vercel)
+  // Si falla, se guarda el motivo (para avisar en la app) y no se reintenta hasta pasadas 6 horas,
+  // para no llamar a Instagram en cada petición mientras siga fallando.
   function renovarSiToca(c) {
     const edad = Date.now() - Date.parse(c.obtenido);
     const quedan = Date.parse(c.caduca) - Date.now();
     if (quedan <= 0 || edad < DIA || quedan > 50 * DIA) return c;
+    if (c.intentoRenovacion && Date.now() - Date.parse(c.intentoRenovacion) < 6 * 3600e3) return c;
     renovando ??= renovarToken(c.token)
       .then(async (r) => {
-        const nueva = { ...c, token: r.token, obtenido: new Date().toISOString(), caduca: new Date(Date.now() + r.segundos * 1000).toISOString() };
+        const { errorRenovacion, intentoRenovacion, ...resto } = c;
+        const nueva = { ...resto, token: r.token, obtenido: new Date().toISOString(), caduca: new Date(Date.now() + r.segundos * 1000).toISOString() };
         await almacen.guardar("ig-token", nueva);
         console.log(`Permiso de Instagram de @${c.usuario} renovado hasta ${nueva.caduca}`);
         return nueva;
       })
-      .catch((e) => {
+      .catch(async (e) => {
         console.warn(`No se pudo renovar el permiso de Instagram: ${e.message}`);
-        return c;
+        const fallida = { ...c, errorRenovacion: e.message, intentoRenovacion: new Date().toISOString() };
+        await almacen.guardar("ig-token", fallida).catch(() => {});
+        return fallida;
       })
       .finally(() => (renovando = null));
     return renovando;
@@ -285,7 +291,15 @@ export function crearApp({ dirResultados }) {
         instagram: {
           puedeConectar: Boolean(IG_APP_ID && IG_APP_SECRET),
           origen: conexion && !caducada(conexion) ? "enlace" : process.env.IG_TOKEN ? "variable" : null,
-          conectada: conexion ? { usuario: conexion.usuario, caduca: conexion.caduca, caducada: caducada(conexion) } : null,
+          conectada: conexion
+            ? {
+                usuario: conexion.usuario,
+                caduca: conexion.caduca,
+                caducada: caducada(conexion),
+                diasRestantes: Math.max(0, Math.floor((Date.parse(conexion.caduca) - Date.now()) / DIA)),
+                errorRenovacion: conexion.errorRenovacion || null,
+              }
+            : null,
           error: errorInstagram,
         },
       };
@@ -403,6 +417,16 @@ export function crearApp({ dirResultados }) {
         })
       );
       return { sorteos };
+    },
+
+    // Borra los archivos de un sorteo. El que está en curso no: primero hay que terminarlo o cerrarlo.
+    "POST /api/historial/borrar": async ({ body }) => {
+      const id = String(body.id || "");
+      if (!/^[\w-]+$/.test(id)) throw error("Sorteo no válido", 400);
+      const enCurso = await almacen.leerEnCurso();
+      if (enCurso?.sorteo.id === id) throw error("Este sorteo está en curso. Termínalo o ciérralo antes de borrarlo.", 409);
+      await almacen.borrarSorteo(id);
+      return { ok: true };
     },
 
     "GET /api/archivo": async ({ query }) => {

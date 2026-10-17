@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { instagram } from "../api.js";
+import { confirmar } from "./Confirmar.jsx";
 
 function fecha(iso) {
   return new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" });
@@ -37,8 +38,14 @@ export default function Instagram({ status, onCambio, onVolver }) {
       .then(() => setAviso("Enlace copiado"))
       .catch(() => setAviso("No se pudo copiar: mantén pulsado el enlace para copiarlo"));
 
-  const desconectar = () => {
-    if (!confirm(`¿Desconectar @${ig.conectada.usuario}? La app dejará de poder leer sus comentarios.`)) return;
+  const desconectar = async () => {
+    const ok = await confirmar({
+      titulo: `¿Desconectar @${ig.conectada.usuario}?`,
+      texto: "La app dejará de poder leer sus comentarios hasta que se vuelva a conectar con un enlace.",
+      aceptar: "Sí, desconectar",
+      peligro: true,
+    });
+    if (!ok) return;
     instagram
       .desconectar()
       .then(onCambio)
@@ -58,8 +65,16 @@ export default function Instagram({ status, onCambio, onVolver }) {
         {ig.origen === "enlace" && (
           <p className="hint">
             Conectada <strong>@{ig.conectada.usuario}</strong> con enlace. El permiso dura hasta el{" "}
-            {fecha(ig.conectada.caduca)} y se renueva solo.
+            {fecha(ig.conectada.caduca)}{ig.conectada.errorRenovacion ? "." : " y se renueva solo."}
           </p>
+        )}
+        {ig.origen === "enlace" && ig.conectada.errorRenovacion && (
+          <div className="alert">
+            El último intento de renovarlo ha fallado: {ig.conectada.errorRenovacion}.{" "}
+            {ig.conectada.diasRestantes <= 10
+              ? "Quedan pocos días: crea un enlace nuevo para volver a conectarla."
+              : "Se volverá a intentar solo; si sigue fallando, la app avisará antes de que caduque."}
+          </div>
         )}
         {ig.origen === "variable" && (
           <p className="hint">

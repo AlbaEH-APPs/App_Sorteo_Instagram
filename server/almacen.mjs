@@ -72,6 +72,9 @@ function almacenArchivos(dir) {
       }
       return [...ids].sort().reverse();
     },
+    async borrarSorteo(id) {
+      for (const tipo of TIPOS) fs.rmSync(path.join(dir, `${id}-${tipo}`), { force: true });
+    },
 
     async cacheLeer(clave) {
       return cache.get(clave) ?? null;
@@ -167,6 +170,10 @@ function almacenRedis(url, token) {
     leerArchivo: (id, tipo) => redis("GET", `${P}archivo:${id}:${tipo}`),
     async listarIds() {
       return redis("ZREVRANGEBYLEX", `${P}ids`, "+", "-");
+    },
+    async borrarSorteo(id) {
+      await redis("DEL", ...TIPOS.map((tipo) => `${P}archivo:${id}:${tipo}`));
+      await redis("ZREM", `${P}ids`, id);
     },
 
     cacheLeer: (clave) => leerJSON(`${P}cache:${clave}`),
