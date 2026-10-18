@@ -202,7 +202,8 @@ App_Sorteo_Instagram/
 │   └── sorteo.mjs          Lógica del sorteo: bases por defecto, filtrado y barajado
 ├── client/                 Web (React + Vite)
 │   ├── index.html
-│   ├── public/             Iconos (180, 192 y 512 px) y manifest.webmanifest, para instalarla en el móvil
+│   ├── public/             Iconos (180, 192, 512 y 1024 px), manifest.webmanifest (instalar en el móvil)
+│   │                       y las páginas públicas privacidad.html y eliminar-datos.html (con legal.css)
 │   └── src/
 │       ├── main.jsx, App.jsx   Entrada y cambio entre pantallas
 │       ├── api.js              Llamadas al servidor

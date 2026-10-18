@@ -23,6 +23,8 @@ function estatico(req, res) {
   }
   const rel = decodeURIComponent(new URL(req.url, "http://x").pathname);
   let file = path.join(DIST, path.normalize(rel).replace(/^(\.\.[/\\])+/, ""));
+  // Direcciones sin ".html" (/privacidad → privacidad.html), igual que en Vercel con cleanUrls
+  if (!path.extname(file) && fs.existsSync(`${file}.html`)) file = `${file}.html`;
   if (!file.startsWith(DIST) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
     file = path.join(DIST, "index.html");
   }

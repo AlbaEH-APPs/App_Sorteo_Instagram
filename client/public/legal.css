@@ -1,0 +1,29 @@
+/* Estilo de las páginas públicas de privacidad y eliminación de datos (mismos colores que la app) */
+:root { color-scheme: light; }
+body {
+  margin: 0; padding: 32px 16px 48px; background: #f6f1ea; color: #3e3935;
+  font-family: Nunito, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  line-height: 1.6;
+}
+main {
+  position: relative; max-width: 760px; margin: 0 auto; padding: 40px 28px 32px;
+  background: #fffdf9; border: 1px solid #e4d8ca; border-radius: 8px;
+  box-shadow: 0 10px 28px -14px rgba(90, 66, 44, 0.3);
+}
+main::before {
+  content: ""; position: absolute; top: -12px; left: 50%; width: 110px; height: 24px;
+  transform: translateX(-50%) rotate(-3deg); background: rgba(217, 202, 187, 0.8);
+}
+.marca { margin: 0; font-family: "Dancing Script", cursive; font-size: 28px; font-weight: 700; color: #826856; }
+h1 { margin: 4px 0 2px; font-size: 30px; font-weight: 800; line-height: 1.2; }
+.fecha { margin: 0 0 20px; color: #7a6c60; font-size: 14px; }
+h2 { margin: 28px 0 8px; font-size: 19px; font-weight: 800; }
+p, li { font-size: 16px; }
+ul, ol { padding-left: 22px; }
+li { margin: 4px 0; }
+a { color: #826856; font-weight: 700; }
+.nota { padding: 12px 14px; background: #f6f1ea; border-radius: 10px; color: #5e534a; font-size: 15px; }
+@media (max-width: 560px) {
+  main { padding: 34px 18px 24px; }
+  h1 { font-size: 26px; }
+}

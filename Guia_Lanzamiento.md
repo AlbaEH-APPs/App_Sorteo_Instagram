@@ -609,6 +609,33 @@ Ten en cuenta:
 - **Abre cada enlace con la cuenta correcta.** Si el navegador del móvil ya tiene otra cuenta de Instagram abierta, puede conectar esa. Si no ves la pantalla de inicio de sesión, revisa qué cuenta está activa antes de pulsar Permitir.
 - **El Historial guarda también los sorteos de prueba**, junto a los reales. Se distinguen por la fecha y la publicación. Todavía no hay botón para borrarlos (ver *Mejoras pendientes* en la Documentación).
 
+### 8.7 bis. Publicar la app de Meta (imprescindible para leer los comentarios)
+
+Mientras la app de Meta está **"Sin publicar"** (modo desarrollo), Instagram **solo devuelve los comentarios de personas con un rol en la app**. Los de los seguidores llegan vacíos: la app muestra *0 comentarios* aunque la publicación tenga cientos, sin ningún error. Para un sorteo real **hay que publicarla**. Publicar no es lo mismo que la revisión de Meta (*App Review*): se rellenan unos datos y se pulsa un botón.
+
+**Lo que ya está preparado en la app** (páginas públicas, sin contraseña):
+
+| Para | Dirección |
+|---|---|
+| Política de privacidad | `https://sorteo-en-directo.vercel.app/privacidad` |
+| Instrucciones de eliminación de datos | `https://sorteo-en-directo.vercel.app/eliminar-datos` |
+| Icono de 1024×1024 | archivo `client/public/icono-1024.png` del proyecto |
+
+Responsable que figura en ellas: **Sorteos AEH**, contacto **sorteosaeh@gmail.com**. Para cambiarlo, edita `client/public/privacidad.html` y `client/public/eliminar-datos.html`.
+
+**Pasos en https://developers.facebook.com/apps → tu app:**
+1. **Panel → "Testear casos de uso"** tiene que estar con ✓. Si no, usa la app (elegir una publicación y pulsar *Actualizar*) y espera hasta 24 h.
+2. **Configuración de la aplicación → Básica**, rellena y pulsa **Guardar cambios**:
+   - **Icono de la aplicación:** sube `icono-1024.png`.
+   - **URL de la política de privacidad:** `https://sorteo-en-directo.vercel.app/privacidad`
+   - **Eliminación de datos de usuario:** opción *URL de instrucciones* → `https://sorteo-en-directo.vercel.app/eliminar-datos`
+   - **Categoría:** *Negocios y páginas* o *Utilidades*.
+   - **Correo electrónico de contacto:** el de quien gestiona la app (lo usa Meta para avisos; no es público).
+3. **Publicar** (menú de la izquierda): comprueba que todos los requisitos tienen ✓ y pulsa **Publicar**. Si pide una *comprobación del uso de datos*, responde con la verdad.
+4. En la app del sorteo, elige la publicación y pulsa **Actualizar**: ya deberían aparecer los comentarios.
+
+No pulses **"Hazte proveedor de tecnología"**: es para empresas que dan servicio a otras cuentas y pide verificaciones que no hacen falta.
+
 ### 8.8 Si algo falla
 
 | Qué pasa | Qué hacer |
@@ -616,6 +643,7 @@ Ten en cuenta:
 | En la app: "Faltan IG_APP_ID e IG_APP_SECRET" | Haz el paso 8.3 y vuelve a publicar |
 | A tu amiga, Instagram le dice que la app no está disponible, o un error de permisos | Comprueba que aceptó la invitación de **Tester** (paso 3.6) |
 | A tu amiga, Instagram le da un error de *redirect_uri* / "URL no válida" | La dirección del paso 8.2.5 no coincide **exactamente** con la de la app. Revisa que es `https://…/api/ig/callback`, sin barra al final, y que creaste el enlace desde la dirección principal |
+| La app lee **0 comentarios** aunque la publicación tenga muchos, sin error | La app de Meta está **sin publicar** (modo desarrollo): publícala (8.7 bis) |
 | Tu amiga ve "Enlace caducado" | Ya se usó o pasaron 24 h: crea uno nuevo |
 | Tu amiga ve "No se ha conectado" | Pulsó cancelar en Instagram: crea uno nuevo |
 | Tu amiga ve "No se ha podido conectar" y un mensaje de Instagram | Mándame ese mensaje. Suele ser la clave secreta mal copiada (paso 8.3) |
