@@ -619,14 +619,14 @@ Mientras la app de Meta está **"Sin publicar"** (modo desarrollo), Instagram **
 |---|---|
 | Política de privacidad | `https://sorteo-en-directo.vercel.app/privacidad` |
 | Instrucciones de eliminación de datos | `https://sorteo-en-directo.vercel.app/eliminar-datos` |
-| Icono de 1024×1024 | archivo `client/public/icono-1024.png` del proyecto |
+| Icono de 1024×1024 para Meta | archivo `client/public/icono-sorteos-aeh-1024.png` del proyecto (boleto con "Sorteos AEH") |
 
 Responsable que figura en ellas: **Sorteos AEH**, contacto **sorteosaeh@gmail.com**. Para cambiarlo, edita `client/public/privacidad.html` y `client/public/eliminar-datos.html`.
 
 **Pasos en https://developers.facebook.com/apps → tu app:**
 1. **Panel → "Testear casos de uso"** tiene que estar con ✓. Si no, usa la app (elegir una publicación y pulsar *Actualizar*) y espera hasta 24 h.
 2. **Configuración de la aplicación → Básica**, rellena y pulsa **Guardar cambios**:
-   - **Icono de la aplicación:** sube `icono-1024.png`.
+   - **Icono de la aplicación:** sube `icono-sorteos-aeh-1024.png`. Es el que verá quien conecte su cuenta, en la pantalla de *Permitir* de Instagram y en su lista de apps conectadas.
    - **URL de la política de privacidad:** `https://sorteo-en-directo.vercel.app/privacidad`
    - **Eliminación de datos de usuario:** opción *URL de instrucciones* → `https://sorteo-en-directo.vercel.app/eliminar-datos`
    - **Categoría:** *Negocios y páginas* o *Utilidades*.
