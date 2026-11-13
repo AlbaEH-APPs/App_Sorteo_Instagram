@@ -26,12 +26,15 @@
 
 * { box-sizing: border-box; }
 html, body, #root { margin: 0; min-height: 100%; }
+/* Safari en iPhone agranda el texto por su cuenta (sobre todo al girar el móvil). Así respeta los tamaños de la hoja. */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body {
   background:
     radial-gradient(1100px 520px at 90% -12%, rgba(184, 160, 140, 0.22), transparent 60%),
     radial-gradient(900px 480px at -10% 110%, rgba(232, 201, 193, 0.28), transparent 60%),
     var(--bg);
   min-height: 100vh;
+  min-height: 100dvh; /* en iPhone, 100vh es más alto que la pantalla visible */
 }
 button { font: inherit; color: inherit; cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: 0.45; }
@@ -39,7 +42,7 @@ a { color: inherit; }
 :focus-visible { outline: 2px solid var(--topo-oscuro); outline-offset: 2px; }
 
 .app { max-width: 1240px; margin: 0 auto; padding: 20px 24px 40px; }
-.app--stage { max-width: none; min-height: 100vh; display: flex; flex-direction: column; }
+.app--stage { max-width: none; min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
 
 /* ── logo ─────────────────────────── */
 .logo {
@@ -331,14 +334,19 @@ a.btn { display: inline-block; text-decoration: none; }
 .chip--cancelado { color: var(--bad); border-color: #e6c3bc; background: #f9ece9; }
 .chip--en-curso, .chip--sin-terminar { color: var(--aviso); border-color: #e3cfae; background: #fbf3e6; }
 
+/* ── pantallas táctiles ─────────────────────────── */
+/* Con letra de menos de 16px, el iPhone hace zoom al tocar un campo y la página se queda ampliada.
+   Va por tipo de pantalla y no por ancho, para que también valga con el móvil en horizontal. */
+@media (pointer: coarse), (max-width: 560px) {
+  input, select, textarea, .field input, .enlace { font-size: 16px; }
+}
+
 /* ── móvil ─────────────────────────── */
 @media (max-width: 560px) {
   .app { padding: 14px 16px 28px; }
   .topbar { margin-bottom: 16px; }
   .brand__nombre { font-size: 22px; }
   .logo--grande { --t: 132px; }
-  /* 16px evita que el iPhone haga zoom al tocar un campo */
-  .field input, .enlace { font-size: 16px; }
   .btn--huge { padding: 16px 40px; }
   .card { padding: 22px 16px 16px; }
   .final { padding: 36px 16px 22px; }
@@ -351,6 +359,29 @@ a.btn { display: inline-block; text-decoration: none; }
   .pendiente__btns { width: 100%; }
   .pendiente__btns .btn { flex: 1; }
   .stage__foot { opacity: 1; }
+}
+
+/* ── móviles estrechos (iPhone SE/mini o iPhone con «Zoom de pantalla») ─────────────────────────── */
+@media (max-width: 380px) {
+  .app { padding: 12px 12px 24px; }
+  .brand__nombre { font-size: 20px; }
+  .logo--grande { --t: 108px; }
+  .eyebrow, .requisitos__titulo { font-size: 24px; }
+  .final .eyebrow { font-size: 30px; }
+  .stage__title { font-size: 20px; }
+  .reel__row--main { font-size: 34px; }
+  .stage--verificando .reel__row--main { font-size: 28px; }
+  .winners__name { font-size: 26px; }
+  .btn--huge { font-size: 20px; padding: 14px 28px; }
+  .verdict__badge { font-size: 32px; }
+  .panel { padding: 16px; }
+  .post { grid-template-columns: 52px 1fr; }
+  .post__img { width: 52px; height: 52px; }
+  .stat strong { font-size: 26px; }
+  .req { grid-template-columns: 36px 1fr; padding: 10px; }
+  .req__icono { width: 34px; height: 34px; font-size: 15px; }
+  .req__titulo { font-size: 15px; }
+  .comentario__texto { font-size: 15px; }
 }
 
 /* ── borrar del historial ─────────────────────────── */
